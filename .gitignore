@@ -1,0 +1,4 @@
+bin/
+configs/config.yaml
+*.out
+.DS_Store

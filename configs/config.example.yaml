@@ -1,0 +1,17 @@
+http:
+  addr: ":8080"
+  read_timeout: 10s
+  write_timeout: 15s
+
+postgres:
+  # 应用以 linksprout_app 角色连接（非表 owner），RLS 策略才会生效。
+  # 用 postgres 超级用户连接会绕过 RLS，租户隔离形同虚设。
+  # 可用环境变量 LINKSPROUT_PG_DSN 覆盖，避免密码进版本库。
+  dsn: "postgres://linksprout_app:linksprout_app@localhost:55432/linksprout?sslmode=disable"
+
+redis:
+  addr: "localhost:56379"
+
+attribution:
+  # 对应 docs/attribution-policy-v1.md。变更需发新版本号并提前通知客户。
+  policy_version: "v1"

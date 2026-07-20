@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: linksprout
+      POSTGRES_DB: growth
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -10,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d linksprout"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d growth"]
       interval: 2s
       timeout: 3s
       retries: 20

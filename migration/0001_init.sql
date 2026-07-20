@@ -1,8 +1,8 @@
--- LinkSprout 初始化迁移
+-- Growth 初始化迁移
 -- 对应设计文档 §3 领域模型 / §5 计费系统 / §8 多租户
 --
 -- 约定：
---   1. 所有租户数据表带 tenant_id，并启用 RLS（应用以 linksprout_app 角色连接，受策略约束）
+--   1. 所有租户数据表带 tenant_id，并启用 RLS（应用以 growth_app 角色连接，受策略约束）
 --   2. ledger_entry 表对应用角色只授予 SELECT/INSERT —— 账本不可改（设计约束 C3）
 --   3. 金额一律用 BIGINT 存最小货币单位（cent），禁止浮点
 
@@ -11,8 +11,8 @@ BEGIN;
 -- ---------------------------------------------------------------- 应用角色
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'linksprout_app') THEN
-    CREATE ROLE linksprout_app LOGIN PASSWORD 'linksprout_app';
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'growth_app') THEN
+    CREATE ROLE growth_app LOGIN PASSWORD 'growth_app';
   END IF;
 END
 $$;
@@ -363,7 +363,7 @@ CREATE TABLE idempotency_key (
 );
 
 -- ---------------------------------------------------------------- RLS
--- 应用以 linksprout_app 连接（非表 owner），策略生效。
+-- 应用以 growth_app 连接（非表 owner），策略生效。
 -- 用 current_setting(..., true)：未设置时返回 NULL → 比较为 false → fail-closed
 DO $$
 DECLARE t TEXT;
@@ -378,7 +378,7 @@ BEGIN
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I USING (tenant_id = current_setting(''app.tenant_id'', true)::bigint)',
       t);
-    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO linksprout_app', t);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO growth_app', t);
   END LOOP;
 END
 $$;
@@ -389,12 +389,12 @@ ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pricing_config
   USING (tenant_id IS NULL
          OR tenant_id = current_setting('app.tenant_id', true)::bigint);
-GRANT SELECT, INSERT, UPDATE, DELETE ON pricing_config TO linksprout_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON pricing_config TO growth_app;
 
-GRANT SELECT ON tenant, plan, plan_entitlement, template TO linksprout_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO linksprout_app;
+GRANT SELECT ON tenant, plan, plan_entitlement, template TO growth_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO growth_app;
 
 -- 账本不可改：应用角色只能读和追加（设计约束 C3 的数据库层强制）
-REVOKE UPDATE, DELETE ON ledger_entry FROM linksprout_app;
+REVOKE UPDATE, DELETE ON ledger_entry FROM growth_app;
 
 COMMIT;

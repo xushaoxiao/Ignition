@@ -12,10 +12,10 @@ down: ## 停止并清理数据卷
 reset: down up migrate seed ## 重建一个干净的数据库
 
 migrate: ## 执行迁移（以 admin 身份）
-	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d linksprout < migration/0001_init.sql
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d growth < migration/0001_init.sql
 
 seed: ## 灌入演示数据（一个租户 + KOL + 活动 + 领奖码）
-	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d linksprout < migration/seed.sql
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d growth < migration/seed.sql
 
 build:
 	cargo build
@@ -34,4 +34,4 @@ fmt:
 	cargo fmt
 
 psql: ## 进入数据库
-	docker compose exec postgres psql -U postgres -d linksprout
+	docker compose exec postgres psql -U postgres -d growth

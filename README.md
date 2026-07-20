@@ -1,4 +1,4 @@
-# LinkSprout
+# Growth
 
 私域游戏化增长与全链路归因平台。
 

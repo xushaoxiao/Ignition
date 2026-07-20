@@ -66,7 +66,7 @@ impl Config {
         let mut cfg: Config =
             serde_yaml::from_str(&raw).map_err(|e| anyhow::anyhow!("解析配置 {path} 失败: {e}"))?;
 
-        if let Ok(dsn) = std::env::var("LINKSPROUT_PG_DSN") {
+        if let Ok(dsn) = std::env::var("GROWTH_PG_DSN") {
             cfg.postgres.dsn = dsn;
         }
         Ok(cfg)

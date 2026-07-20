@@ -53,6 +53,9 @@ pub struct User {
 }
 
 /// 校验通过后的 initData 内容。
+// auth_date / query_id 目前没有消费方：时效已在 verify 里判过，query_id 要等
+// 需要回调 Telegram 的功能（发消息、回传答案）才用得上。
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct InitData {
     pub user: User,
@@ -137,6 +140,22 @@ pub fn verify(
         start_param: fields.get("start_param").cloned(),
         query_id: fields.get("query_id").cloned(),
     })
+}
+
+/// 在校验签名**之前**取出 `start_param`（即 tracking_id）。
+///
+/// 这是唯一允许在验签前读取的字段，因为它是一个鸡生蛋问题的解法：要验签得先有
+/// bot token，要拿到 bot token 得先知道是哪个租户，而租户恰恰由这个字段定位。
+///
+/// 安全性上可以接受，因为它只用于查询、不用于任何授权判断：伪造它最坏的结果
+/// 是查到别人的投放位，然后卡在紧接着的 initData 签名校验上 —— 那一步用的是
+/// 那个租户的 bot token，攻击者没有。
+pub fn start_param(raw_init_data: &str) -> Option<String> {
+    parse_query(raw_init_data)
+        .into_iter()
+        .find(|(k, _)| k == "start_param")
+        .map(|(_, v)| v)
+        .filter(|v| !v.is_empty())
 }
 
 fn parse_query(raw: &str) -> Vec<(String, String)> {

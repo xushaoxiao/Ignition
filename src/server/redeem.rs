@@ -6,15 +6,17 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::body::Bytes;
 use axum::extract::{ConnectInfo, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use chrono::Utc;
 use serde::Deserialize;
 
-use super::{ApiError, AppState};
+use super::{client_ip, ApiError, AppState};
 use crate::attribution::{RedeemError, RedeemRequest};
+use crate::auth::Scope;
 
 #[derive(Debug, Deserialize)]
 pub struct Body {
@@ -24,15 +26,45 @@ pub struct Body {
     pub device_id: Option<String>,
 }
 
+/// 取原始 `Bytes` 而非 `Json<Body>`：签名覆盖请求体的字节，必须先按原样
+/// 验签再解析。顺序反了，任何 JSON 规范化（键序、空白、数字格式）都会让
+/// 合法请求「随机地」401。
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    method: Method,
+    uri: Uri,
     headers: HeaderMap,
-    Json(body): Json<Body>,
+    body: Bytes,
 ) -> Response {
-    let tenant_id = match auth_tenant(&headers) {
-        Ok(id) => id,
+    let now = Utc::now();
+
+    let caller = match super::guard::server_caller(
+        &state,
+        &method,
+        &uri,
+        &headers,
+        &body,
+        Scope::Redeem,
+        now,
+    )
+    .await
+    {
+        Ok(c) => c,
         Err(e) => return e.into_response(),
+    };
+
+    let body: Body = match serde_json::from_slice(&body) {
+        Ok(b) => b,
+        Err(e) => {
+            return ApiError::new(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                format!("请求体格式非法: {e}"),
+                false,
+            )
+            .into_response()
+        }
     };
 
     if body.claim_code.is_empty() || body.app_user_id.is_empty() {
@@ -46,12 +78,12 @@ pub async fn handle(
     }
 
     let req = RedeemRequest {
-        tenant_id,
+        tenant_id: caller.tenant_id,
         code: body.claim_code,
         app_user_id: body.app_user_id,
         device_id: body.device_id,
         ip: client_ip(&headers, peer),
-        now: Utc::now(),
+        now,
     };
 
     match state.attribution.redeem(&req).await {
@@ -93,55 +125,7 @@ fn map_error(err: RedeemError) -> ApiError {
         }
         Db(e) => {
             tracing::error!(error = %e, "核销失败");
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal_error",
-                "内部错误",
-                true,
-            )
+            ApiError::internal()
         }
     }
-}
-
-/// 解析并校验调用方身份。
-///
-/// **MVP 占位实现**：从 `X-Tenant-ID` 读取。上线前必须换成 API Key + HMAC 签名，
-/// 否则任何人都能伪造租户身份核销任意领奖码。
-///
-/// TODO(auth): 接入 API Key 校验后移除对 X-Tenant-ID 的信任。
-fn auth_tenant(headers: &HeaderMap) -> Result<i64, ApiError> {
-    let unauthorized = |msg: &str| {
-        ApiError::new(
-            StatusCode::UNAUTHORIZED,
-            "unauthorized",
-            msg.to_string(),
-            false,
-        )
-    };
-
-    let raw = headers
-        .get("X-Tenant-ID")
-        .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| unauthorized("缺少租户标识"))?;
-
-    match raw.parse::<i64>() {
-        Ok(id) if id > 0 => Ok(id),
-        _ => Err(unauthorized("租户标识非法")),
-    }
-}
-
-/// 取客户端 IP。
-///
-/// 生产环境应改为只信任已知反代注入的头，否则客户端可以伪造 IP 绕过
-/// 基于 IP 的风控限流。
-fn client_ip(headers: &HeaderMap, peer: SocketAddr) -> Option<String> {
-    if let Some(xff) = headers.get("X-Forwarded-For").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = xff.split(',').next() {
-            let ip = first.trim();
-            if !ip.is_empty() {
-                return Some(ip.to_string());
-            }
-        }
-    }
-    Some(peer.ip().to_string())
 }

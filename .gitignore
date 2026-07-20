@@ -25,3 +25,12 @@ configs/config.yaml
 
 # macOS
 .DS_Store
+
+# TMA 前端
+web/tma/node_modules
+web/tma/dist
+web/tma/.env
+web/tma/.env.local
+
+# 本地密钥
+configs/local.env

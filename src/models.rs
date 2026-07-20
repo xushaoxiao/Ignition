@@ -102,6 +102,9 @@ impl AttributionMethod {
 ///
 /// `evidence` 存判定当时的完整输入快照，是 KOL 申诉时唯一的证据来源，只增不改。
 /// `policy_version` 对应一份对客户公开的规则文档，规则变更必须发新版本号。
+// TODO(query): 归因查询接口（GET /v1/attribution/:app_user_id）与申诉复算
+// 落地后会读它，届时移除 allow。
+#[allow(dead_code)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Attribution {
     pub id: i64,
@@ -192,6 +195,9 @@ pub mod event_type {
 ///
 /// 只有 `Attribution::is_billable` 为 true 的转化才会产生 `BillableEvent`；
 /// 不可计费的转化只进分析流（ClickHouse），不进这张表。
+// 字段与表结构一一对应，`FromRow` 整行读出。其中 external_id、occurred_at
+// 等几项的消费方是明细导出与差异视图，那两块还没写。
+#[allow(dead_code)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct BillableEvent {
     pub id: i64,
@@ -255,6 +261,8 @@ impl Direction {
         }
     }
 
+    /// 与 `Txn::reverse` 成对，冲正链路落地后才有在线调用方。
+    #[allow(dead_code)]
     pub fn flip(self) -> Direction {
         match self {
             Direction::Debit => Direction::Credit,

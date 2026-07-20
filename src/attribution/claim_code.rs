@@ -11,7 +11,10 @@ const CLAIM_ALPHABET: &[u8] = b"23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CLAIM_CODE_LEN: usize = 8;
 
 /// 投放位 ID 的字符集。
+// TODO(console): 投放位签发接口（KOL 后台）落地后移除这三处 allow。
+#[allow(dead_code)]
 const TRACKING_ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+#[allow(dead_code)]
 const TRACKING_ID_LEN: usize = 10;
 
 /// 生成一个领奖码。
@@ -26,6 +29,7 @@ pub fn new_claim_code() -> String {
 ///
 /// 必须不可枚举：如果 KOL 能猜出别人的链接，就能互相刷量或窃取归因。
 /// 这里不做人类可读优化 —— tracking_id 从不需要手动输入。
+#[allow(dead_code)]
 pub fn new_tracking_id() -> String {
     random_string(TRACKING_ALPHABET, TRACKING_ID_LEN)
 }

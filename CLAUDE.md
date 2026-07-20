@@ -15,6 +15,11 @@
   不要为了让新逻辑通过而改测试预期。
 - **改 `redeem.rs`** → 这是全链路唯一的缝合点，整段必须留在单事务内，
   `SELECT ... FOR UPDATE` 不能去掉。
+- **改 S2S 接口的入参解析** → handler 必须先按**原始 `Bytes`** 验签再反序列化。
+  改成 `Json<T>` 提取器会让签名对不上，且症状是「部分客户随机 401」。
+- **改 `jobs/settle.rs`** → 它是账本、封顶、状态机唯一同时进入在线链路的地方。
+  取待结算事件的条件是 `invoice_id IS NULL` 而**不是**按账期窗口过滤 ——
+  换成窗口过滤，晚放行的事件会被永远漏掉。
 
 ## 硬性规则
 
@@ -26,8 +31,19 @@
    那样绕过 RLS 上下文，查出来是空集（fail-closed），排查起来很费时间。
 5. **新增归因方式时认真对待 `is_billable` 的 match 分支** —— 编译器会强制你
    表态，但表态错了没人拦得住。默认应为不可计费。
-6. **Bot token 与 postback secret 禁止进日志**，字段名带 `_enc` 后缀的都是。
+6. **密钥禁止进日志**。`_enc` 后缀的字段解密后一律包在 `secrets::Secret` 里，
+   它的 `Debug` 恒为 `<redacted>`；要拿明文必须显式调 `expose()`，
+   那是一处能被 review 抓住的调用。不要为了打日志方便把它拆成 `String`。
 7. **新增能力开关走 entitlement**，不写 `if plan == "pro"`。
+8. **租户身份只能来自 `auth::Caller` 或 `jwt::Claims`**，不许从请求体、
+   查询参数或自定义头里读 —— 那正是被 API Key 签名替换掉的占位实现。
+9. **Postgres 的 `sum(bigint)` 返回 `NUMERIC`**，聚合金额时一律显式 `::bigint`，
+   否则 sqlx 会在解码时报类型不匹配。这个坑在结算与账本校验里都踩到过。
+
+## 前端
+
+TMA 前端在 `web/tma/`，约定见 [web/tma/README.md](./web/tma/README.md)。两条不能改：
+抽奖结果由服务端产生（前端只播动画），initData 必须原样上传（签名对原始字段序列算）。
 
 ## 测试
 

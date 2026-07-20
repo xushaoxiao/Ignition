@@ -20,8 +20,20 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# 本地运行配置：含数据库连接串，不进版本库
-configs/config.yaml
+# 开发环境配置与凭据：**正式发布前刻意进版本库**。
+#
+# 私有仓库，且这一阶段换机器开发的频率远高于凭据泄漏的风险 ——
+# clone 下来就能跑，不用再传一次 .env。发布前的处理见 README「发布前须知」。
+#
+# 届时把下面三行取消注释，并且**必须轮换**（改文件删不掉 git 历史里的旧值）：
+#   configs/config.yaml
+#   configs/local.env
+#   web/tma/.env.local
 
 # macOS
 .DS_Store
+
+# TMA 前端
+web/tma/node_modules
+web/tma/dist
+web/tma/.env

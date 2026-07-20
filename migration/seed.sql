@@ -1,12 +1,29 @@
 -- 演示数据：一个租户 + KOL + 活动 + 投放位 + 一个待核销的领奖码。
--- 用于本地跑通 POST /v1/claims/redeem。
+-- 用于本地跑通全链路。
+--
+-- 这里**不包含** Bot token 与 API Key：它们是密文，明文写进版本库就失去了
+-- 加密存储的意义。用 `make secrets` 生成并写入（见 Makefile）。
+\if :{?schema}
+\else
+  \set schema ignition
+\endif
+SET search_path TO :"schema", public;
+
 BEGIN;
+
+-- 演示数据全部属于租户 1。启用了 FORCE ROW LEVEL SECURITY 之后，策略对表
+-- owner 同样生效，而只有 USING 没有 WITH CHECK 的策略在 INSERT 时会拿 USING
+-- 当校验用 —— 不设这个上下文，灌数据会被自己的租户隔离策略挡下来。
+SELECT set_config('app.tenant_id', '1', true);
 
 INSERT INTO tenant (id, name, slug) VALUES (1, 'Demo Tenant', 'demo')
   ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO app (id, tenant_id, name, bundle_id, package_name, postback_secret_enc)
-VALUES (1, 1, 'Demo App', 'com.demo.app', 'com.demo.app', '\x64656d6f2d736563726574')
+INSERT INTO app (id, tenant_id, name, bundle_id, package_name,
+                 store_url_ios, store_url_android)
+VALUES (1, 1, 'Demo App', 'com.demo.app', 'com.demo.app',
+        'https://apps.apple.com/app/id000000000',
+        'https://play.google.com/store/apps/details?id=com.demo.app')
   ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO plan (id, code, name) VALUES

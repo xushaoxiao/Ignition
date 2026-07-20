@@ -297,7 +297,13 @@ txn_id = uuid()
 **不变量（每日校验任务，失败即告警）**：
 - 任一 `txn_id` 下 `sum(D) == sum(C)`
 - `sum(所有分录 D) == sum(所有分录 C)`
-- `billable_event(status in ('billed'))` 的金额合计 == `platform_revenue` 科目余额 ± 冲正额
+- `billable_event(status = 'billed')` 的金额合计 ==
+  `platform_revenue` 科目中 **`ref_type = 'billable_event'`** 部分的净额
+
+> 第三条的 `ref_type` 限定是实现阶段补上的：平台订阅费同样计入
+> `platform_revenue`，但它不对应任何 `billable_event`。不加限定的话，每个有
+> 订阅费的租户每月都会误报一次「账本不平」—— 一个有噪声的账本告警等于没有
+> 告警。落地实现见 `src/jobs/audit.rs`。
 
 ---
 
@@ -350,7 +356,8 @@ txn_id = uuid()
 
 [6] 变现回传
     POST /v1/postback/purchase
-      Header: X-Signature = HMAC-SHA256(postback_secret, body + timestamp)
+      Header: X-Ignition-Key / X-Ignition-Timestamp / X-Ignition-Signature
+              签名 = HMAC-SHA256(api_secret, ts + "." + METHOD\n路径\n请求体)
       Body:   { app_user_id, transaction_id, amount, currency, occurred_at }
     → 时间戳窗口 ±5min 防重放
     → transaction_id 幂等
@@ -620,6 +627,23 @@ POST /v1/postback/purchase      变现回传（可选，MVP 可后接）
 
 GET  /v1/attribution/:app_user_id   查询归因（可选，用于 App 内展示邀请人）
 ```
+
+TMA 前端另有一组接口，与 S2S 那套凭据完全分开 —— 前端保不住长期密钥：
+
+```
+POST /v1/tma/session            initData → 短期 JWT（access 15min / refresh 7d）
+POST /v1/tma/session/refresh
+POST /v1/tma/play               抽奖（结果服务端生成，需幂等键）
+POST /v1/tma/claim              为一次抽奖签发领奖码
+```
+
+**S2S 与回传统一用一套 API Key。** 原设计里回传单独用 `app.postback_secret`，
+实现时合并成了 `api_key` + `scopes`：两套密钥意味着两套轮换流程和两个可能过期
+的地方，而 scope 已经足以表达「这把钥匙只能核销，不能报账」。相应地
+`app.postback_secret_enc` 列在 `migration/0002` 中被删除。
+
+**签名覆盖「方法 + 路径 + 请求体」而不只是请求体。** 只签请求体的话，一个对
+`/v1/claims/redeem` 合法的签名可以被原样重放到 `/v1/postback/purchase` 上。
 
 **契约设计原则**：
 

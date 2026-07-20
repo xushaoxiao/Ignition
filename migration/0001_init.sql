@@ -6,13 +6,38 @@
 --   2. ledger_entry 表对应用角色只授予 SELECT/INSERT —— 账本不可改（设计约束 C3）
 --   3. 金额一律用 BIGINT 存最小货币单位（cent），禁止浮点
 
+-- 目标 schema。psql 变量，默认 ignition：共享库里靠它与其它项目隔离
+-- （与 growing-tales 同一套约定）。覆盖方式：psql -v schema=xxx
+\if :{?schema}
+\else
+  \set schema ignition
+\endif
+CREATE SCHEMA IF NOT EXISTS :"schema";
+SET search_path TO :"schema", public;
+
 BEGIN;
 
 -- ---------------------------------------------------------------- 应用角色
+-- 应用必须以这个非特权角色连接，RLS 策略才会生效。
+--
+-- **刻意建成 NOLOGIN**，只当权限容器用：迁移会在托管库（Supabase）上执行，
+-- 而那类实例是公网可达的。带默认口令的登录角色一旦被建出来，就是一个人人
+-- 都猜得到的入口。开登录是部署时的动作，要配一把真实的随机口令：
+--
+--   ALTER ROLE ignition_app LOGIN PASSWORD '<随机口令>';
+--
+-- 本地 docker 环境由 `make migrate` 顺手开好，见 Makefile。
+--
+-- 当前角色未必有 CREATEROLE，建不出来不阻断迁移，但要留下明确警告 ——
+-- 少了这个角色，租户隔离就只剩应用层的 where 条件。
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ignition_app') THEN
-    CREATE ROLE ignition_app LOGIN PASSWORD 'ignition_app';
+    BEGIN
+      CREATE ROLE ignition_app NOLOGIN;
+    EXCEPTION WHEN insufficient_privilege THEN
+      RAISE WARNING '无权创建 ignition_app 角色，请由 DBA 手工创建并授权，否则 RLS 不生效';
+    END;
   END IF;
 END
 $$;
@@ -375,6 +400,10 @@ BEGIN
     'risk_signal','risk_verdict','idempotency_key'
   ] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    -- FORCE 不能省：默认情况下表 owner 不受自己表上的策略约束，而迁移的执行者
+    -- 通常就是 owner。少了它，任何以 owner 身份跑的查询都能看到全部租户。
+    -- （注意 FORCE 也拦不住带 BYPASSRLS 的角色 —— 那只能靠换角色。）
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I USING (tenant_id = current_setting(''app.tenant_id'', true)::bigint)',
       t);
@@ -386,15 +415,48 @@ $$;
 -- pricing_config 需要单独的策略：tenant_id IS NULL 表示全局默认定价，
 -- 通用策略会把它挡在外面，导致计价查不到行、金额静默算成 0 —— 那比报错更糟。
 ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_config FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pricing_config
   USING (tenant_id IS NULL
          OR tenant_id = current_setting('app.tenant_id', true)::bigint);
-GRANT SELECT, INSERT, UPDATE, DELETE ON pricing_config TO ignition_app;
+DO $$
+BEGIN
+  EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON pricing_config TO ignition_app';
+EXCEPTION WHEN undefined_object THEN NULL;
+END
+$$;
 
-GRANT SELECT ON tenant, plan, plan_entitlement, template TO ignition_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ignition_app;
+DO $$
+DECLARE s TEXT := current_schema();
+BEGIN
+  EXECUTE format('GRANT USAGE ON SCHEMA %I TO ignition_app', s);
+  EXECUTE 'GRANT SELECT ON tenant, plan, plan_entitlement, template TO ignition_app';
+  EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA %I TO ignition_app', s);
+EXCEPTION WHEN undefined_object THEN
+  RAISE WARNING 'ignition_app 角色不存在，已跳过授权';
+END
+$$;
 
 -- 账本不可改：应用角色只能读和追加（设计约束 C3 的数据库层强制）
-REVOKE UPDATE, DELETE ON ledger_entry FROM ignition_app;
+DO $$
+BEGIN
+  EXECUTE 'REVOKE UPDATE, DELETE ON ledger_entry FROM ignition_app';
+EXCEPTION WHEN undefined_object THEN NULL;
+END
+$$;
+
+-- 账本不可改的第二道锁：权限回收只对被回收的角色有效，表 owner 不受影响。
+-- 触发器则对所有角色生效，包括 owner 和带 BYPASSRLS 的角色 —— 在托管数据库
+-- 上（应用往往只能以 owner 连接），这是 C3 唯一还站得住的数据库层保证。
+CREATE OR REPLACE FUNCTION ledger_is_append_only() RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION '账本只可追加：ledger_entry 不允许 % —— 冲正请写反向分录（ledger::Txn::reverse）', TG_OP;
+END
+$$;
+
+CREATE TRIGGER ledger_entry_append_only
+  BEFORE UPDATE OR DELETE ON ledger_entry
+  FOR EACH ROW EXECUTE FUNCTION ledger_is_append_only();
 
 COMMIT;

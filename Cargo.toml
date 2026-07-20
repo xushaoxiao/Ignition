@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 axum = "0.8"
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # 启用 derive 而非 macros：derive 只提供 #[derive(sqlx::Type/FromRow)]，
 # macros 才会带上 query! 系列宏。query! 要求编译期能连上数据库，会让 CI 和
@@ -22,11 +22,20 @@ serde_yaml = "0.9"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
+# 密码学。全部来自 RustCrypto，实现一致、审计历史清楚。
 hmac = "0.12"
 sha2 = "0.10"
+# _enc 字段的加密存储。AEAD 而非纯加密：密文被篡改要能被发现，
+# 而不是解出一段垃圾密钥再拿去验签。
+aes-gcm = { version = "0.10", features = ["std"] }
 hex = "0.4"
+base64 = "0.22"
 rand = "0.8"
 urlencoding = "2"
+
+# TMA 会话令牌。关掉默认特性：默认会拉进 PEM / ASN.1 解析，而我们只用 HS256。
+# 手写 JWT 是经典的安全脚枪（alg:none、签名比较不定长），不值得省这个依赖。
+jsonwebtoken = { version = "9", default-features = false }
 
 thiserror = "2"
 anyhow = "1"

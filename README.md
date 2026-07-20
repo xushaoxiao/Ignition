@@ -20,7 +20,9 @@
 
 ## 当前进度
 
-这是 v0 的骨架，实现了收入链路的核心，**尚不可上线**。已实现与未实现见下方清单。
+收入链路已经完整跑通：**TMA 开场 → 抽奖 → 领奖码 → 核销归因 → 计费事件 →
+月末出账 → 复式分录 → 账本校验**，端到端可运行。仍有若干上线前必须补齐的项，
+见下方「未实现」。
 
 ### 已实现
 
@@ -37,52 +39,118 @@
 | TG initData 校验 | `src/telegram.rs` | HMAC + 时效 + 多租户 token |
 | 回传签名校验 | `src/hmacsig.rs` | HMAC + 时间戳窗口防重放 |
 | 风控 L1 + L2 采集 | `src/risk.rs` | 核销侧优先 hold 不 deny |
-| HTTP 服务 | `src/server/` | `/v1/claims/redeem` |
+| HTTP 服务 | `src/server/` | S2S 两个接口 + TMA 四个接口 |
+| **API Key + HMAC 认证** | `src/auth/apikey.rs` | 签名覆盖方法 + 路径 + 请求体，scope 缺省拒绝 |
+| **密钥加密存储** | `src/secrets.rs` | AES-256-GCM，`Secret` 的 Debug 恒为 `<redacted>` |
+| **TMA 会话** | `src/auth/jwt.rs` | initData → access 15min + refresh 7d |
+| **服务端权威抽奖** | `src/game/` | 权重抽取 + 原子扣库存 + 幂等 |
+| **领奖码签发** | `src/attribution/issue.rs` | 一次抽奖一个码，含双平台落地引导 |
+| **变现回传** | `src/attribution/postback.rs` | 分析流与计费流分离 |
+| **能力门控** | `src/entitlement.rs` | plan 缺省 + 租户 override，缺省关闭 |
+| **定时任务** | `src/jobs/` | 冷静期放行 / 账本校验 / 月末结算 |
+| **TMA 前端** | `web/tma/` | React + Vite + Tailwind，转盘用 CSS transform |
 
 ### 未实现（按优先级）
 
-1. **`authTenant` 是占位实现** —— 现在从 `X-Tenant-ID` 头读租户，任何人都能伪造
-   身份核销任意领奖码。上线前必须换成 API Key + HMAC。见
-   `src/server/redeem.rs` 的 `TODO(auth)`。
-2. **`postback_secret_enc` / `bot.token_enc` 尚未接 KMS** —— 表结构和字段名已按
-   加密存储设计，但还没有加解密实现。
-3. `POST /v1/postback/purchase` 回传接口（签名校验已具备，handler 未写）
-4. 月末结算任务、Invoice 生成、Stripe 集成
-5. 冷静期到期自动 clear 的定时任务
-6. 账本不变量的每日校验任务
-7. 抽奖 / 奖池扣减 / 领奖码签发接口
-8. entitlement 门控的读取与执行
-9. TMA 前端、KOL 后台、ClickHouse 分析流
-10. L3 渠道级风控扫描
+1. **主密钥来自环境变量，尚未接 KMS** —— `src/secrets.rs` 的密文格式已经带了
+   版本字节，接 KMS 时是加一个 `V2` 分支，旧密文继续可读，不需要停机迁移。
+2. **Stripe 集成** —— 月末账单已能生成 `invoice` + `invoice_line` + 复式分录，
+   但没有推给支付侧，`invoice.status` 恒为 `draft`。
+3. **entitlement 尚无门控点** —— 能力集与订阅服务等级都已实现并有测试，
+   但除了「欠费超宽限期停止分发新会话」外，还没有具体能力挂上去。
+4. 明细导出 / 差异视图 / 申诉通道（设计文档 §5.4，是产品功能而非内部工具）
+5. 冲正链路：`ledger::Txn::reverse` 已实现且有测试，但没有触发它的接口
+6. KOL 后台、三指标看板、ClickHouse 分析流
+7. L3 渠道级风控扫描
+8. 归因查询接口 `GET /v1/attribution/:app_user_id`
 
 ---
 
 ## 快速开始
 
+### 后端
+
 ```bash
-make up          # 启动 postgres + redis
-make migrate     # 建表 + RLS + 应用角色
-make seed        # 演示租户/KOL/活动/领奖码
 cp configs/config.example.yaml configs/config.yaml
-make run         # cargo run
+
+# 两把密钥只从环境变量读，缺失即启动失败 —— 不提供默认值，
+# 一个有默认值的签名密钥等于所有部署共用同一把钥匙。
+export IGNITION_MASTER_KEY=$(cargo run -q -- keygen)
+export IGNITION_JWT_KEY=$(openssl rand -base64 32)
+
+make reset       # 起库 + 迁移 + 演示数据 + 演示密钥
+make run
 ```
 
-跑一次核销：
+`make reset` 里的 `secrets` 这一步用 `ignition seal` 现场加密演示用的 Bot token
+与 API Key —— 密文不进版本库，否则加密存储就只是个摆设。
+
+### 共享 Supabase
+
+和 growing-tales 共用一个 Supabase 实例时，靠**独立 schema** 隔离（默认
+`ignition`，配置项 `postgres.schema` / 环境变量 `IGNITION_PG_SCHEMA`）。
+每条连接会把它放到 `search_path` 首位，与 growing-tales 同一套约定。
 
 ```bash
-curl -s -X POST localhost:8080/v1/claims/redeem \
-  -H 'Content-Type: application/json' \
-  -H 'X-Tenant-ID: 1' \
-  -d '{"claim_code":"DEMA2345","app_user_id":"app-user-1","device_id":"dev-1"}'
+export IGNITION_PG_DSN='postgresql://...pooler.supabase.com:5432/postgres?sslmode=require'
+make migrate-remote
 ```
 
-```json
-{"attributed":true,"kol_id":1,"campaign_id":1,"method":"deterministic_code","policy_version":"v1","held":false}
+连接池要选 **Session Pooler（5432）而不是 Transaction Pooler（6543）**：
+后者不保留会话状态，sqlx 的预编译语句和 `search_path` 都会失效。
+
+**连接角色必须是 `ignition_app`，不能是 `postgres`。** 迁移会建好这个角色
+（NOLOGIN 的权限容器），部署时单独开登录：
+
+```sql
+ALTER ROLE ignition_app LOGIN PASSWORD '<随机口令>';
 ```
 
-再调一次同样的请求，会得到 `409 code_used` —— 领奖码不可重复核销。
+DSN 里的用户名用 Supavisor 的格式 `ignition_app.<project-ref>`，已验证可用。
+口令建议只用字母数字 —— 它要进连接串，特殊字符得 URL 转义，是个常见的坑。
 
-测试：
+切换后启动日志会打 `已连接数据库，RLS 生效`；打的是 ERROR 说明还连着特权角色。
+
+> **⚠️ 为什么不能用 `postgres` 角色：租户隔离（约束 C5）会不生效。**
+>
+> 那个角色带 `rolbypassrls`，RLS 策略对它整体不适用 —— 连
+> `FORCE ROW LEVEL SECURITY` 都拦不住，那只能约束表 owner，管不了 BYPASSRLS。
+>
+> 危险之处在于**它没有任何症状**：接口照常返回、测试照常通过，只有当某个
+> 客户看到别人的数据时才会暴露。所以服务启动时会查一次 `pg_roles` 并打
+> ERROR 级日志，但那只是提醒，不是补救。
+>
+> `ignition_app` 之所以被建成 NOLOGIN、要单独开登录：迁移会在公网可达的
+> 托管库上执行，带默认口令的登录角色等于一个人人都猜得到的入口。
+
+账本的只可追加（约束 C3）在托管库上也换了实现：原来靠
+`REVOKE UPDATE, DELETE`，但权限回收对表 owner 无效。现在额外加了一个
+`BEFORE UPDATE OR DELETE` 触发器，对所有角色生效 —— 包括 owner 和 BYPASSRLS。
+
+### 定时任务
+
+由外部调度器拉起，刻意不塞进服务进程：账单任务需要能被人手重跑、能单独看日志。
+
+```bash
+make job-clear     # 每小时：冷静期到期的事件转入 cleared
+make job-audit     # 每日：校验账本不变量，失败即非零退出（接告警）
+make job-settle    # 每月 T+1：出上个月的账单
+```
+
+### TMA 前端
+
+```bash
+cd web/tma
+pnpm install
+cp .env.example .env.local     # 填 VITE_API_BASE
+pnpm dev
+```
+
+Telegram 只加载 HTTPS 页面，本地调试需要 cloudflared / ngrok 之类的隧道。
+不想起隧道时，可以注入一份预先签好的 initData 在浏览器里跑通全流程，
+见 [web/tma/README.md](web/tma/README.md)。
+
+### 测试
 
 ```bash
 make test    # cargo test，不需要数据库
@@ -182,17 +250,23 @@ configs/              配置（config.yaml 不进版本库）
 migration/            建表迁移 + 演示数据
 docs/                 归因规则等对外文档
 src/
-  main.rs             入口
-  config.rs           配置加载
+  main.rs             入口：服务 / 定时任务 / 密钥工具
+  config.rs           配置加载（密钥只从环境变量读）
   models.rs           领域类型、归因计费映射、状态机、Cents
   db.rs               连接池、租户事务（RLS 上下文）
+  secrets.rs          _enc 字段的加解密与防泄漏封装
   ledger.rs           复式记账
   billing.rs          状态推进、封顶
+  entitlement.rs      能力门控、订阅服务等级
   risk.rs             L1 硬约束
   telegram.rs         initData 校验
-  hmacsig.rs          回传签名
-  attribution/        归因规则、领奖码、核销事务
+  hmacsig.rs          HMAC 签名与时间窗
+  auth/               API Key 签名（S2S）、会话令牌（TMA）
+  attribution/        归因规则、领奖码签发与核销、变现回传
+  game/               服务端权威抽奖与奖池扣减
+  jobs/               冷静期放行、账本校验、月末结算
   server/             HTTP 接口
+web/tma/              Telegram Mini App 前端
 ```
 
 ## 技术选型说明

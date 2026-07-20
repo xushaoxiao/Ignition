@@ -128,6 +128,8 @@ impl Txn {
     ///
     /// 返回 `Txn` 而非 `Result`：原交易既然构造成功就一定是平衡的，
     /// 逐条翻转方向后必然仍然平衡。
+    // TODO(appeal): 申诉与退款接口落地后会调用它，届时移除 allow。
+    #[allow(dead_code)]
     pub fn reverse(&self, ref_type: &str, ref_id: i64) -> Txn {
         let entries = self
             .entries
@@ -206,6 +208,10 @@ pub fn charge_platform_fee(
 }
 
 /// 按科目汇总一组分录的净额（借为正，贷为负），用于不变量校验与对账。
+///
+/// `ledger-audit` 任务没有用它：那边直接在 SQL 里聚合，避免把全量分录读进
+/// 内存。这个函数留给人工对账和单笔交易的即时校验。
+#[allow(dead_code)]
 pub fn balance(entries: &[Entry]) -> HashMap<Account, i64> {
     let mut out: HashMap<Account, i64> = HashMap::new();
     for e in entries {

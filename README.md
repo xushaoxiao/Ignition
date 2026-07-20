@@ -16,23 +16,23 @@
 | 模块 | 位置 | 说明 |
 |---|---|---|
 | 领域模型与迁移 | `migration/0001_init.sql` | 含 RLS 租户隔离、账本表的 UPDATE/DELETE 权限回收 |
-| 归因方式与计费判定 | `internal/models` | 只有确定性归因可计费 |
-| 可计费事件状态机 | `internal/models` + `internal/service/billing` | pending→cleared→billed→reversed |
-| 复式记账 | `internal/service/ledger` | 借贷平衡校验、冲正 |
-| 月度封顶 | `internal/service/billing` | 超出部分免费而非拒绝 |
-| 领奖码 | `internal/service/attribution/claimcode.go` | CSPRNG、排除易混字符、格式校验 |
-| 核销事务 | `internal/service/attribution/redeem.go` | 全链路唯一缝合点，单事务完成 |
-| 归因规则版本化 | `internal/service/attribution/policy.go` + `docs/attribution-policy-v1.md` | 可复算、可申诉 |
-| TG initData 校验 | `internal/service/telegram` | HMAC + 时效 + 多租户 token |
-| 回传签名校验 | `pkg/hmacsig` | HMAC + 时间戳窗口防重放 |
-| 风控 L1 + L2 采集 | `internal/service/risk` | 核销侧优先 hold 不 deny |
-| HTTP 服务 | `internal/server` | `/v1/claims/redeem` |
+| 归因方式与计费判定 | `src/models.rs` | 只有确定性归因可计费，穷尽 match 强制表态 |
+| 可计费事件状态机 | `src/models.rs` + `src/billing.rs` | pending→cleared→billed→reversed |
+| 复式记账 | `src/ledger.rs` | 不平衡的 `Txn` 在类型层面不可构造 |
+| 月度封顶 | `src/billing.rs` | 超出部分免费而非拒绝 |
+| 领奖码 | `src/attribution/claim_code.rs` | 排除易混字符、归一化、格式校验 |
+| 核销事务 | `src/attribution/redeem.rs` | 全链路唯一缝合点，单事务完成 |
+| 归因规则版本化 | `src/attribution/policy.rs` + `docs/attribution-policy-v1.md` | 可复算、可申诉 |
+| TG initData 校验 | `src/telegram.rs` | HMAC + 时效 + 多租户 token |
+| 回传签名校验 | `src/hmacsig.rs` | HMAC + 时间戳窗口防重放 |
+| 风控 L1 + L2 采集 | `src/risk.rs` | 核销侧优先 hold 不 deny |
+| HTTP 服务 | `src/server/` | `/v1/claims/redeem` |
 
 ### 未实现（按优先级）
 
 1. **`authTenant` 是占位实现** —— 现在从 `X-Tenant-ID` 头读租户，任何人都能伪造
    身份核销任意领奖码。上线前必须换成 API Key + HMAC。见
-   `internal/server/handler_redeem.go` 的 `TODO(auth)`。
+   `src/server/redeem.rs` 的 `TODO(auth)`。
 2. **`postback_secret_enc` / `bot.token_enc` 尚未接 KMS** —— 表结构和字段名已按
    加密存储设计，但还没有加解密实现。
 3. `POST /v1/postback/purchase` 回传接口（签名校验已具备，handler 未写）
@@ -53,7 +53,7 @@ make up          # 启动 postgres + redis
 make migrate     # 建表 + RLS + 应用角色
 make seed        # 演示租户/KOL/活动/领奖码
 cp configs/config.example.yaml configs/config.yaml
-make run         # 启动 API
+make run         # cargo run
 ```
 
 跑一次核销：
@@ -74,8 +74,8 @@ curl -s -X POST localhost:8080/v1/claims/redeem \
 测试：
 
 ```bash
-make test    # 单元测试，不需要数据库
-make lint    # go vet
+make test    # cargo test，不需要数据库
+make lint    # cargo clippy + fmt --check
 ```
 
 ---
@@ -86,8 +86,9 @@ make lint    # go vet
 
 ### C1 计费只依赖确定性归因
 
-概率归因的转化可以进看板，绝不能进账单。`AttributionMethod.IsBillable()` 是
-这条约束的唯一执行点，`models_test.go` 里有测试守着它。
+概率归因的转化可以进看板，绝不能进账单。`AttributionMethod::is_billable()` 是这条约束的唯一执行点，
+它用穷尽 `match` 而非查表实现：新增一种归因方式时编译器会强制你明确表态，
+不可能因为忘了登记而默认落到某个分支。`models.rs` 的测试另有一道守护。
 
 背景：iOS 17+ 之后 user-level 的 deferred deep link 已无可靠实现。按概率匹配
 计费，等于向客户收一笔我们自己也无法验证的钱。
@@ -122,7 +123,7 @@ override 表不是可选项：早期销售一定会承诺「先免费给你开 D
 
 ### 核销是全链路唯一的缝合点
 
-`internal/service/attribution/redeem.go` 是整个系统最关键的一段代码。TG 侧身份
+`src/attribution/redeem.rs` 是整个系统最关键的一段代码。TG 侧身份
 （`tg_user_id`，来自 initData）与 App 侧身份（`app_user_id`，来自主 App）在这
 一刻绑定，归因与可计费事件同时产生。
 
@@ -157,7 +158,7 @@ MVP 的计费事件 `external_id` 用 `claim:<id>` —— 核销是我方可确�
 
 手动输入是 iOS 侧唯一可计费的归因路径，一个字符的误读就是一次收入损失。
 
-`NormalizeClaimCode` 刻意**不做**混淆字符映射：把 `0` 猜成 `O` 还是 `D` 无法
+`normalize_claim_code` 刻意**不做**混淆字符映射：把 `0` 猜成 `O` 还是 `D` 无法
 可靠推断，猜错会把一个有效码变成另一个有效码，归到错误的 KOL 名下。宁可报
 格式错让用户重输。
 
@@ -166,29 +167,44 @@ MVP 的计费事件 `external_id` 用 `claim:<id>` —— 核销是我方可确�
 ## 目录结构
 
 ```
-cmd/api/              服务入口
 configs/              配置（config.yaml 不进版本库）
 migration/            建表迁移 + 演示数据
 docs/                 归因规则等对外文档
-internal/
-  conf/               配置加载
-  models/             领域类型、归因计费映射、状态机
-  dao/                pgx 连接池、租户事务（RLS 上下文）
+src/
+  main.rs             入口
+  config.rs           配置加载
+  models.rs           领域类型、归因计费映射、状态机、Cents
+  db.rs               连接池、租户事务（RLS 上下文）
+  ledger.rs           复式记账
+  billing.rs          状态推进、封顶
+  risk.rs             L1 硬约束
+  telegram.rs         initData 校验
+  hmacsig.rs          回传签名
+  attribution/        归因规则、领奖码、核销事务
   server/             HTTP 接口
-  service/
-    attribution/      归因规则、领奖码、核销事务
-    billing/          状态推进、封顶
-    ledger/           复式记账
-    risk/             L1 硬约束
-    telegram/         initData 校验
-pkg/hmacsig/          回传签名
 ```
 
 ## 技术选型说明
 
-标准库路由 + pgx + testify，刻意不引入 Kratos/etcd/wire 那套微服务框架。MVP
-阶段最大的风险是交付速度，不是架构优雅度。模块边界已按未来可拆分的方式划清
-（`internal/service/*` 之间只通过导出接口互调）。
+Rust + axum + sqlx + tokio。
+
+**sqlx 只启用 `derive` 而非 `macros`**：`query!` 系列宏要求编译期能连上数据库，
+会让 CI 和新同事的第一次 `cargo build` 都依赖一个跑着的 Postgres。代价是失去
+编译期 SQL 校验，换来构建无外部依赖。
+
+**类型系统承担了两条核心不变量**，这是相对动态检查的实质收益：
+
+- `AttributionMethod::is_billable()` 用穷尽 `match` —— 新增归因方式时编译器
+  强制你决定它是否可计费，忘记登记不会静默落到默认分支。
+- `ledger::Txn` 字段私有、只能经 `try_new` 构造 —— **不平衡的交易在类型层面
+  无法存在**，不依赖调用方记得先调一次校验。
+
+`Cents` 是 newtype 而非裸 `i64`：系统里同时有数量、ID、时长等一堆 i64，
+混用是最容易发生且最难发现的一类错误。
 
 Redis 已在 `docker-compose.yml` 中就位，但代码尚未使用 —— 幂等键与限流目前
 依赖数据库唯一约束，够 MVP 用。
+
+`main.rs` 顶部的 `#![allow(dead_code)]` 是有期限的：账本、封顶、回传签名都已
+实现并有测试，但还没接入在线链路。那两块接完后应移除该 allow，让 `dead_code`
+重新变成有效信号。

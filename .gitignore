@@ -1,4 +1,3 @@
-bin/
+/target
 configs/config.yaml
-*.out
 .DS_Store

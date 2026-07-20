@@ -1,0 +1,37 @@
+[package]
+name = "linksprout"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["trace"] }
+
+# 启用 derive 而非 macros：derive 只提供 #[derive(sqlx::Type/FromRow)]，
+# macros 才会带上 query! 系列宏。query! 要求编译期能连上数据库，会让 CI 和
+# 新同事的第一次 cargo build 都依赖一个跑着的 Postgres。
+# 用运行时 query + bind，代价是失去编译期 SQL 校验，换来构建无外部依赖。
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio-rustls", "postgres", "chrono", "uuid", "json", "derive",
+] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+urlencoding = "2"
+
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }

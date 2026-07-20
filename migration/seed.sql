@@ -69,7 +69,7 @@ VALUES (1, 1, 123456789, 'demo_user', now() - interval '2 minutes')
 
 INSERT INTO claim_code
   (id, tenant_id, code, player_id, campaign_id, link_id, kol_id, status, issued_at, expires_at)
-VALUES (1, 1, 'DEMO2345', 1, 1, 1, 1, 'issued',
+VALUES (1, 1, 'DEMA2345', 1, 1, 1, 1, 'issued',
         now() - interval '2 minutes', now() + interval '24 hours')
   ON CONFLICT (id) DO NOTHING;
 

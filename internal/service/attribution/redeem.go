@@ -219,11 +219,12 @@ func (s *Service) Redeem(ctx context.Context, req RedeemRequest) (*RedeemResult,
 				VALUES ($1,$2,$3,$4,$5,
 				        COALESCE((SELECT (cpa_rates->>$3)::bigint FROM pricing_config
 				                   WHERE (tenant_id = $1 OR tenant_id IS NULL)
-				                     AND effective_from <= $8
-				                     AND (effective_to IS NULL OR effective_to > $8)
+				                     AND effective_from <= $6
+				                     AND (effective_to IS NULL OR effective_to > $6)
+				                   -- 租户专属定价优先于全局默认
 				                   ORDER BY tenant_id NULLS LAST, effective_from DESC
 				                   LIMIT 1), 0),
-				        'USD', $8, $8, $9, $10)
+				        'USD', $6, $6, $7, $8)
 				ON CONFLICT (tenant_id, event_type, external_id) DO NOTHING`,
 				req.TenantID, attributionID, models.EventActivation,
 				fmt.Sprintf("claim:%d", claimID), status,

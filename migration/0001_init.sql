@@ -369,7 +369,7 @@ DO $$
 DECLARE t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'app','bot','tenant_entitlement_override','subscription','pricing_config',
+    'app','bot','tenant_entitlement_override','subscription',
     'kol','channel','campaign','reward_item','link','player','attribution',
     'claim_code','billable_event','ledger_entry','invoice','invoice_line',
     'risk_signal','risk_verdict','idempotency_key'
@@ -382,6 +382,14 @@ BEGIN
   END LOOP;
 END
 $$;
+
+-- pricing_config 需要单独的策略：tenant_id IS NULL 表示全局默认定价，
+-- 通用策略会把它挡在外面，导致计价查不到行、金额静默算成 0 —— 那比报错更糟。
+ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON pricing_config
+  USING (tenant_id IS NULL
+         OR tenant_id = current_setting('app.tenant_id', true)::bigint);
+GRANT SELECT, INSERT, UPDATE, DELETE ON pricing_config TO linksprout_app;
 
 GRANT SELECT ON tenant, plan, plan_entitlement, template TO linksprout_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO linksprout_app;

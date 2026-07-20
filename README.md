@@ -62,7 +62,7 @@ make run         # 启动 API
 curl -s -X POST localhost:8080/v1/claims/redeem \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-ID: 1' \
-  -d '{"claim_code":"DEMO2345","app_user_id":"app-user-1","device_id":"dev-1"}'
+  -d '{"claim_code":"DEMA2345","app_user_id":"app-user-1","device_id":"dev-1"}'
 ```
 
 ```json

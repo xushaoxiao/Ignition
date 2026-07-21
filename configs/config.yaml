@@ -1,17 +1,17 @@
 http:
-  # 必须是完整的 socket 地址，不能省略主机部分
+  # Must be a full socket address; do not omit the host part
   addr: "0.0.0.0:18080"
   cors_origins: ["http://localhost:5173"]
 
 postgres:
-  # 应用以 ignition_app 角色连接（非表 owner），RLS 策略才会生效。
-  # 用 postgres 超级用户连接会绕过 RLS，租户隔离形同虚设。
-  # 可用环境变量 IGNITION_PG_DSN 覆盖，避免密码进版本库。
-  # 真实连接串在 configs/local.env（IGNITION_PG_DSN 覆盖本项）
+  # App connects as ignition_app (not table owner) so RLS policies apply.
+  # Connecting as postgres superuser bypasses RLS and tenant isolation is void.
+  # Override with IGNITION_PG_DSN to keep passwords out of version control.
+  # Real connection string lives in configs/local.env (IGNITION_PG_DSN overrides this).
   dsn: "postgres://ignition_app:ignition_app@localhost:55432/ignition?sslmode=disable"
   max_connections: 10
   schema: "ignition"
 
 attribution:
-  # 对应 docs/attribution-policy-v1.md。变更需发新版本号并提前通知客户。
+  # Matches docs/product/attribution-policy-v1.md. Changes require a new version and customer notice.
   policy_version: "v1"

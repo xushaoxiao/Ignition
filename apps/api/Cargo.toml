@@ -1,0 +1,46 @@
+[package]
+name = "ignition"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Use derive, not macros: derive only provides #[derive(sqlx::Type/FromRow)];
+# macros pull in the query! family. query! requires a live database at compile time,
+# which makes CI and a new colleague's first cargo build depend on a running Postgres.
+# Runtime query + bind trades compile-time SQL checking for builds with no external deps.
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio-rustls", "postgres", "chrono", "uuid", "json", "derive",
+] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Cryptography. All from RustCrypto — consistent implementations and clear audit history.
+hmac = "0.12"
+sha2 = "0.10"
+# Encrypted storage for _enc fields. AEAD, not bare encryption: tampered ciphertext must be
+# detectable, not silently decrypted into garbage keys used for signature verification.
+aes-gcm = { version = "0.10", features = ["std"] }
+hex = "0.4"
+base64 = "0.22"
+rand = "0.8"
+urlencoding = "2"
+
+# TMA session tokens. Default features disabled: defaults pull in PEM / ASN.1 parsing; we only use HS256.
+# Hand-rolled JWT is a classic foot-gun (alg:none, non-constant-time signature compare) — not worth skipping this dep.
+jsonwebtoken = { version = "9", default-features = false }
+
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }

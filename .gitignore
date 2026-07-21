@@ -16,7 +16,7 @@ target
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  and can be added to the global gitignore or merged into this file. For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
@@ -28,12 +28,17 @@ target
 # 届时把下面三行取消注释，并且**必须轮换**（改文件删不掉 git 历史里的旧值）：
 #   configs/config.yaml
 #   configs/local.env
-#   web/tma/.env.local
+#   apps/tma/.env.local
 
 # macOS
 .DS_Store
 
+# Node / pnpm
+node_modules
+**/node_modules
+.pnpm-store
+
 # TMA 前端
-web/tma/node_modules
-web/tma/dist
-web/tma/.env
+apps/tma/dist
+apps/tma/.env
+**/.vite

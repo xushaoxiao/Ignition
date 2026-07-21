@@ -1,0 +1,9 @@
+{
+  "name": "ignition",
+  "private": true,
+  "scripts": {
+    "dev:tma": "pnpm --filter @ignition/tma dev",
+    "build:tma": "pnpm --filter @ignition/tma build",
+    "typecheck:tma": "pnpm --filter @ignition/tma typecheck"
+  }
+}

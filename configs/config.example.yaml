@@ -1,28 +1,27 @@
 http:
-  # 必须是完整的 socket 地址，不能省略主机部分
+  # Must be a full socket address; do not omit the host part
   addr: "0.0.0.0:8080"
-  # TMA 前端是独立部署的静态站点，与 API 不同源，必须显式放行。
-  # 用允许列表而不是 "*"：这些接口带 Bearer 令牌。留空则不开启 CORS。
+  # TMA frontend is a separately deployed static site, cross-origin from the API — allow explicitly.
+  # Use an allow list, not "*": these endpoints carry Bearer tokens. Empty disables CORS.
   cors_origins:
     - "http://localhost:5173"
 
 postgres:
-  # 应用必须以「不带 BYPASSRLS 的非特权角色」连接，RLS 策略才会生效。
+  # App must connect as a non-privileged role without BYPASSRLS or RLS policies do not apply.
   #
-  # 托管库（Supabase）的默认 postgres 角色带 BYPASSRLS —— 用它连接，
-  # 租户隔离（约束 C5）会完全失效且毫无症状。服务启动时会检查并告警，
-  # 但那只是提醒，不是补救。生产必须用专用角色。
+  # Hosted DB default postgres (e.g. Supabase) has BYPASSRLS — tenant isolation (constraint C5)
+  # fails silently. Startup checks warn but do not fix it. Production must use a dedicated role.
   #
-  # 连接池选 Session Pooler（5432）而非 Transaction Pooler（6543）：
-  # 后者不保留会话状态，sqlx 的预编译语句和 search_path 都会失效。
+  # Use Session Pooler (5432), not Transaction Pooler (6543): the latter drops session state,
+  # breaking sqlx prepared statements and search_path.
   #
-  # 可用环境变量 IGNITION_PG_DSN 覆盖，避免连接串进版本库。
+  # Override with IGNITION_PG_DSN to keep the connection string out of version control.
   dsn: "postgres://ignition_app:ignition_app@localhost:55432/ignition?sslmode=disable"
   max_connections: 10
-  # 独立 schema，与共享库里的其它项目（如 growing_tales）隔离。
-  # 每条连接会把它放到 search_path 首位。环境变量 IGNITION_PG_SCHEMA 可覆盖。
+  # Dedicated schema, isolated from other projects on a shared DB (e.g. growing_tales).
+  # Prepended to search_path on each connection. Override with IGNITION_PG_SCHEMA.
   schema: "ignition"
 
 attribution:
-  # 对应 docs/attribution-policy-v1.md。变更需发新版本号并提前通知客户。
+  # Matches docs/product/attribution-policy-v1.md. Changes require a new version and customer notice.
   policy_version: "v1"

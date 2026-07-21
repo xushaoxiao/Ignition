@@ -1,45 +1,47 @@
-.PHONY: help up down reset migrate seed secrets keygen build run test lint fmt psql \
-        job-clear job-audit job-settle
+.PHONY: help up down reset migrate migrate-remote seed secrets keygen build run test lint fmt psql \
+        job-clear job-audit job-settle tma-install tma-dev tma-build tma-typecheck test-all
 
 help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-12s\033[0m %s\n",$$1,$$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-14s\033[0m %s\n",$$1,$$2}'
 
 PSQL      = docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d ignition
 CFG       = configs/config.yaml
 DB_SCHEMA ?= ignition
+CARGO     = cargo
+PKG       = -p ignition
 
-up: ## 启动 postgres + redis
+up: ## Start postgres + redis
 	docker compose up -d --wait
 
-down: ## 停止并清理数据卷
+down: ## Stop and remove data volumes
 	docker compose down -v
 
-reset: down up migrate seed secrets ## 重建一个干净的、可直接跑通全链路的数据库
+reset: down up migrate seed secrets ## Rebuild a clean database ready for end-to-end local runs
 
-migrate: ## 执行迁移（以 admin 身份）
-	$(PSQL) < migration/0001_init.sql
-	$(PSQL) < migration/0002_auth_game_postback.sql
-	@# 迁移把 ignition_app 建成 NOLOGIN 的权限容器（它会在公网可达的托管库上
-	@# 执行，不能种默认口令）。本地 docker 不对外，这里顺手开登录方便开发。
-	@# 生产环境请用随机口令单独执行这一句。
+migrate: ## Run migrations (as admin)
+	$(PSQL) < db/migrations/0001_init.sql
+	$(PSQL) < db/migrations/0002_auth_game_postback.sql
+	@# Migration creates ignition_app as NOLOGIN (runs on internet-reachable hosted DBs;
+	@# cannot seed default passwords). Local docker is not exposed; enable login here for dev.
+	@# In production, run this separately with a random password.
 	$(PSQL) -c "ALTER ROLE ignition_app LOGIN PASSWORD 'ignition_app';"
 
-migrate-remote: ## 对远端库执行迁移（读 IGNITION_PG_DSN，不碰角色口令）
-	@test -n "$$IGNITION_PG_DSN" || (echo "需要 IGNITION_PG_DSN" && exit 1)
-	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < migration/0001_init.sql
-	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < migration/0002_auth_game_postback.sql
+migrate-remote: ## Run migrations on remote DB (reads IGNITION_PG_DSN; does not touch role passwords)
+	@test -n "$$IGNITION_PG_DSN" || (echo "IGNITION_PG_DSN is required" && exit 1)
+	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0001_init.sql
+	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0002_auth_game_postback.sql
 
-seed: ## 灌入演示数据（租户 / KOL / 活动 / 奖池 / 投放位）
-	$(PSQL) < migration/seed.sql
+seed: ## Load demo data (tenant / KOL / campaign / prize pool / link)
+	$(PSQL) < db/seed.sql
 
-keygen: ## 生成一把新的主密钥
-	@cargo run -q -- keygen
+keygen: ## Generate a new master key
+	@$(CARGO) run $(PKG) -q -- keygen
 
-# Bot token 与 API Key 是密文，不能写进版本库里的 seed.sql —— 那样加密存储就
-# 只是个摆设。这里用 `ignition seal` 现场加密，密文只存在于本地数据库。
-secrets: ## 写入演示 Bot token 与 API Key（需要 IGNITION_MASTER_KEY）
-	@BOT=$$(cargo run -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
-	 KEY=$$(cargo run -q -- $(CFG) seal 'demo-api-secret'); \
+# Bot token and API key are ciphertext — they must not live in seed.sql in the repo or
+# encryption is theatre. `ignition seal` encrypts here; ciphertext exists only in local DB.
+secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY)
+	@BOT=$$($(CARGO) run $(PKG) -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
+	 KEY=$$($(CARGO) run $(PKG) -q -- $(CFG) seal 'demo-api-secret'); \
 	 $(PSQL) -c "INSERT INTO bot (id, tenant_id, username, token_enc) \
 	             VALUES (1, 1, 'demo_bot', '$$BOT') \
 	             ON CONFLICT (id) DO UPDATE SET token_enc = EXCLUDED.token_enc; \
@@ -48,28 +50,42 @@ secrets: ## 写入演示 Bot token 与 API Key（需要 IGNITION_MASTER_KEY）
 	             ON CONFLICT (id) DO UPDATE SET secret_enc = EXCLUDED.secret_enc; \
 	             SELECT setval('bot_id_seq', 1), setval('api_key_id_seq', 1);"
 
-build:
-	cargo build
+build: ## Build API
+	$(CARGO) build $(PKG)
 
-run: ## 本地运行
-	cargo run -- $(CFG)
+run: ## Run API locally
+	$(CARGO) run $(PKG) -- $(CFG)
 
-job-clear:  ## 冷静期到期放行
-	cargo run -q -- $(CFG) job clear-holds
-job-audit:  ## 账本不变量校验
-	cargo run -q -- $(CFG) job ledger-audit
-job-settle: ## 月末结算
-	cargo run -q -- $(CFG) job settle
+job-clear:  ## Release events whose hold period has ended
+	$(CARGO) run $(PKG) -q -- $(CFG) job clear-holds
+job-audit:  ## Ledger invariant audit
+	$(CARGO) run $(PKG) -q -- $(CFG) job ledger-audit
+job-settle: ## End-of-month settlement
+	$(CARGO) run $(PKG) -q -- $(CFG) job settle
 
-test: ## 单元测试，不需要数据库
-	cargo test
+test: ## API unit tests (no database)
+	$(CARGO) test $(PKG)
 
-lint:
-	cargo clippy --all-targets -- -D warnings
-	cargo fmt --check
+lint: ## API clippy + fmt check
+	$(CARGO) clippy $(PKG) --all-targets -- -D warnings
+	$(CARGO) fmt --all -- --check
 
-fmt:
-	cargo fmt
+fmt: ## Format API
+	$(CARGO) fmt --all
 
-psql: ## 进入数据库
+psql: ## Open database shell
 	docker compose exec postgres psql -U postgres -d ignition
+
+tma-install: ## Install frontend dependencies
+	pnpm install
+
+tma-dev: ## Start TMA dev server
+	pnpm --filter @ignition/tma dev
+
+tma-build: ## Build TMA
+	pnpm --filter @ignition/tma build
+
+tma-typecheck: ## TMA typecheck
+	pnpm --filter @ignition/tma typecheck
+
+test-all: test tma-typecheck ## API unit tests + TMA typecheck

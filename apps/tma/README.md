@@ -37,14 +37,14 @@ claim-code redemption completion rate > 40%**.
 
 ## Local development
 
-Install dependencies and start from the **repository root** (pnpm workspace):
+Install dependencies and start from the **repository root** (pnpm workspace lives under `apps/`):
 
 ```bash
 # from repo root
-pnpm install
+make tma-install
 cp apps/tma/.env.example apps/tma/.env.local
 make tma-dev
-# or: pnpm --filter @ignition/tma dev
+# or: pnpm --dir apps --filter @ignition/tma dev
 ```
 
 Telegram only loads HTTPS pages; real-device debugging needs a tunnel:
@@ -86,7 +86,7 @@ Use an allow list, not `*`: these endpoints carry Bearer tokens.
 ```bash
 # from repo root
 make tma-build
-# or: pnpm --filter @ignition/tma build
+# or: pnpm --dir apps --filter @ignition/tma build
 ```
 
 Output is static files; deploy `apps/tma/dist/` to a CDN. In production, reverse-proxy

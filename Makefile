@@ -4,17 +4,27 @@
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-14s\033[0m %s\n",$$1,$$2}'
 
-PSQL      = docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d ignition
+# Local Postgres/Redis live under docker/; keep COMPOSE_FILE exported so plain
+# `docker compose …` from make targets resolves the same file.
+COMPOSE_FILE ?= docker/compose.yml
+export COMPOSE_FILE
+COMPOSE   = docker compose
+PSQL      = $(COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d ignition
 CFG       = configs/config.yaml
 DB_SCHEMA ?= ignition
-CARGO     = cargo
+
+# Language workspaces live under apps/ — not the repository root.
+# cargo requires --manifest-path after the subcommand.
+APPS      = apps
+MANIFEST  = --manifest-path $(APPS)/Cargo.toml
 PKG       = -p ignition
+PNPM      = pnpm --dir $(APPS)
 
 up: ## Start postgres + redis
-	docker compose up -d --wait
+	$(COMPOSE) up -d --wait
 
 down: ## Stop and remove data volumes
-	docker compose down -v
+	$(COMPOSE) down -v
 
 reset: down up migrate seed secrets ## Rebuild a clean database ready for end-to-end local runs
 
@@ -35,13 +45,13 @@ seed: ## Load demo data (tenant / KOL / campaign / prize pool / link)
 	$(PSQL) < db/seed.sql
 
 keygen: ## Generate a new master key
-	@$(CARGO) run $(PKG) -q -- keygen
+	@cargo run $(MANIFEST) $(PKG) -q -- keygen
 
 # Bot token and API key are ciphertext — they must not live in seed.sql in the repo or
 # encryption is theatre. `ignition seal` encrypts here; ciphertext exists only in local DB.
 secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY)
-	@BOT=$$($(CARGO) run $(PKG) -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
-	 KEY=$$($(CARGO) run $(PKG) -q -- $(CFG) seal 'demo-api-secret'); \
+	@BOT=$$(cargo run $(MANIFEST) $(PKG) -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
+	 KEY=$$(cargo run $(MANIFEST) $(PKG) -q -- $(CFG) seal 'demo-api-secret'); \
 	 $(PSQL) -c "INSERT INTO bot (id, tenant_id, username, token_enc) \
 	             VALUES (1, 1, 'demo_bot', '$$BOT') \
 	             ON CONFLICT (id) DO UPDATE SET token_enc = EXCLUDED.token_enc; \
@@ -51,41 +61,41 @@ secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY)
 	             SELECT setval('bot_id_seq', 1), setval('api_key_id_seq', 1);"
 
 build: ## Build API
-	$(CARGO) build $(PKG)
+	cargo build $(MANIFEST) $(PKG)
 
 run: ## Run API locally
-	$(CARGO) run $(PKG) -- $(CFG)
+	cargo run $(MANIFEST) $(PKG) -- $(CFG)
 
 job-clear:  ## Release events whose hold period has ended
-	$(CARGO) run $(PKG) -q -- $(CFG) job clear-holds
+	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job clear-holds
 job-audit:  ## Ledger invariant audit
-	$(CARGO) run $(PKG) -q -- $(CFG) job ledger-audit
+	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job ledger-audit
 job-settle: ## End-of-month settlement
-	$(CARGO) run $(PKG) -q -- $(CFG) job settle
+	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job settle
 
 test: ## API unit tests (no database)
-	$(CARGO) test $(PKG)
+	cargo test $(MANIFEST) $(PKG)
 
 lint: ## API clippy + fmt check
-	$(CARGO) clippy $(PKG) --all-targets -- -D warnings
-	$(CARGO) fmt --all -- --check
+	cargo clippy $(MANIFEST) $(PKG) --all-targets -- -D warnings
+	cargo fmt $(MANIFEST) --all -- --check
 
 fmt: ## Format API
-	$(CARGO) fmt --all
+	cargo fmt $(MANIFEST) --all
 
 psql: ## Open database shell
-	docker compose exec postgres psql -U postgres -d ignition
+	$(COMPOSE) exec postgres psql -U postgres -d ignition
 
 tma-install: ## Install frontend dependencies
-	pnpm install
+	$(PNPM) install
 
 tma-dev: ## Start TMA dev server
-	pnpm --filter @ignition/tma dev
+	$(PNPM) --filter @ignition/tma dev
 
 tma-build: ## Build TMA
-	pnpm --filter @ignition/tma build
+	$(PNPM) --filter @ignition/tma build
 
 tma-typecheck: ## TMA typecheck
-	pnpm --filter @ignition/tma typecheck
+	$(PNPM) --filter @ignition/tma typecheck
 
 test-all: test tma-typecheck ## API unit tests + TMA typecheck

@@ -2,14 +2,14 @@
 
 Rust HTTP service, background jobs, and CLI tools (`keygen`, `seal`, …).
 
-Package name: `ignition`. Lives in the repo Cargo workspace; run commands from the **repository root**.
+Package name: `ignition`. Cargo workspace root is `apps/` (sibling of this crate). Prefer **repository-root** `make` targets so config paths stay correct.
 
 ## Local run
 
 ```bash
 # from repo root
 cp configs/config.example.yaml configs/config.yaml
-export IGNITION_MASTER_KEY=$(cargo run -p ignition -q -- keygen)
+export IGNITION_MASTER_KEY=$(cargo run --manifest-path apps/Cargo.toml -p ignition -q -- keygen)
 export IGNITION_JWT_KEY=$(openssl rand -base64 32)
 
 make reset

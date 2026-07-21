@@ -72,7 +72,7 @@ cp configs/config.example.yaml configs/config.yaml
 
 # Both keys are env-only; missing keys fail startup — no defaults.
 # A default signing key is a shared key across every deploy.
-export IGNITION_MASTER_KEY=$(cargo run -p ignition -q -- keygen)
+export IGNITION_MASTER_KEY=$(cargo run --manifest-path apps/Cargo.toml -p ignition -q -- keygen)
 export IGNITION_JWT_KEY=$(openssl rand -base64 32)
 
 make reset       # DB up + migrate + demo data + demo secrets
@@ -125,7 +125,7 @@ make job-settle    # monthly T+1: invoice the previous month
 ### TMA frontend
 
 ```bash
-pnpm install
+make tma-install   # pnpm --dir apps install
 cp apps/tma/.env.example apps/tma/.env.local     # set VITE_API_BASE
 make tma-dev
 ```
@@ -135,7 +135,7 @@ Telegram only loads HTTPS pages; local device debugging needs a tunnel (cloudfla
 ### Tests
 
 ```bash
-make test        # cargo test -p ignition; no database required
+make test        # cargo test -p ignition via apps/Cargo.toml; no database required
 make lint        # cargo clippy + fmt --check
 make test-all    # API unit tests + TMA typecheck
 ```
@@ -209,19 +209,27 @@ Manual entry is the only billable iOS path; one misread character is lost revenu
 ## Layout
 
 ```
-apps/
-  api/                Rust HTTP service / jobs / key tooling
-  tma/                Telegram Mini App
-packages/             Shared libs (extract only with a second consumer)
-configs/              Runtime config (read from repo root)
+Makefile / README.md              Orchestration & entry docs
+configs/                          Runtime config (read from repo root)
 db/
-  migrations/         Schema migrations
-  seed.sql            Demo data
+  migrations/                     Schema migrations
+  seed.sql                        Demo data
+docker/
+  compose.yml                     Local Postgres + Redis
 docs/
-  product/            Public contracts (attribution policy, …)
-  design/             Target system design
-  engineering/        Engineering notes (monorepo, …)
+  product/                        Public contracts (attribution policy, …)
+  design/                         Target system design
+  engineering/                    Engineering notes (monorepo, …)
+apps/                             Language workspaces (Cargo + pnpm live here)
+  Cargo.toml / Cargo.lock
+  package.json / pnpm-workspace.yaml / pnpm-lock.yaml
+  api/                            Rust HTTP service / jobs / key tooling
+  tma/                            Telegram Mini App
+  packages/                       Shared JS/TS libs (second consumer only)
 ```
+
+Cargo and pnpm manifests sit under `apps/`, not the repository root. Use `make …`
+from the root (it passes `--manifest-path` on cargo subcommands and `pnpm --dir apps`).
 
 API module detail: [apps/api/README.md](apps/api/README.md).
 
@@ -238,6 +246,6 @@ Rust + axum + sqlx + tokio.
 
 `Cents` is a newtype, not a bare `i64`: the codebase mixes quantities, IDs, and durations as i64; mixing them is an easy, hard-to-spot class of bug.
 
-Redis is in `docker-compose.yml` but unused in code yet — idempotency and rate limits currently rely on DB unique constraints, enough for MVP.
+Redis is in `docker/compose.yml` but unused in code yet — idempotency and rate limits currently rely on DB unique constraints, enough for MVP.
 
 `#![allow(dead_code)]` at the top of `main.rs` is time-boxed: ledger, cap, and postback signing exist and are tested but are not all wired into the online path yet. Remove the allow once they are, so `dead_code` is a useful signal again.

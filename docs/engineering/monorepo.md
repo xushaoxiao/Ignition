@@ -1,32 +1,56 @@
 # Monorepo layout
 
-Ignition is a Cargo + pnpm monorepo.
+Ignition keeps **language workspaces under `apps/`**. The repository root only
+orchestrates (Makefile, docs, configs, db, docker).
 
 ```
-apps/
-  api/          Rust HTTP service, jobs, CLI (package name: ignition)
-  tma/          Telegram Mini App (@ignition/tma)
-packages/       Shared libraries — add only when a second consumer exists
-db/
-  migrations/   Schema migrations
-  seed.sql      Local demo data
-configs/        Runtime config (read from repo root)
-docs/
-  product/      Public contracts
-  design/       Target architecture
-  engineering/  How we work in this repo
+Makefile / README.md / CLAUDE.md   Orchestration & docs
+configs/                           Runtime config (API reads from repo root cwd)
+db/                                Migrations + seed
+docker/                            Local Postgres + Redis
+docs/                              Product / design / engineering
+
+apps/                              ← Cargo + pnpm workspace root
+  Cargo.toml / Cargo.lock          Rust workspace (member: api)
+  package.json / pnpm-workspace.yaml / pnpm-lock.yaml
+  api/                             Rust HTTP service, jobs, CLI (package: ignition)
+  tma/                             Telegram Mini App (@ignition/tma)
+  packages/                        Shared JS/TS libs (add when a second consumer exists)
 ```
+
+## Why manifests live under `apps/`
+
+The repo root stays free of language lockfiles. Cargo and pnpm each resolve their
+workspace from `apps/`. The root `Makefile` points at them:
+
+```makefile
+MANIFEST = --manifest-path apps/Cargo.toml
+PNPM     = pnpm --dir apps
+# e.g. cargo test $(MANIFEST) -p ignition
+```
+
+Config paths (`configs/config.yaml`) stay relative to the **repository root**
+because Make invokes cargo with the repo as cwd.
 
 ## Workspaces
 
-- **Cargo** — root `Cargo.toml` lists `apps/api`. Run from repo root: `cargo test -p ignition`.
-- **pnpm** — root `pnpm-workspace.yaml` includes `apps/*` and `packages/*`. Prefer `pnpm --filter @ignition/tma …` or `make tma-*`.
+- **Cargo** — `apps/Cargo.toml` members `["api"]`. From repo root: `make test` or
+  `cargo test --manifest-path apps/Cargo.toml -p ignition`.
+- **pnpm** — `apps/pnpm-workspace.yaml` includes `tma` and `packages/*`.
+  Prefer `make tma-*` or `pnpm --dir apps --filter @ignition/tma …`.
+
+## Local containers
+
+```bash
+make up
+docker compose -f docker/compose.yml up -d --wait
+```
 
 ## Adding an app
 
 1. Put it under `apps/<name>/`.
-2. Rust: add the path to `[workspace].members`.
-3. JS/TS: ensure `package.json` name is `@ignition/<name>`; pnpm picks it up via `apps/*`.
+2. Rust: add the path to `apps/Cargo.toml` `[workspace].members`.
+3. JS/TS: name the package `@ignition/<name>`; list it in `apps/pnpm-workspace.yaml`.
 4. Wire root `Makefile` targets; keep the root README quick-start in sync.
 
 Do not extract shared crates/packages until a second app actually needs them.

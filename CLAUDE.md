@@ -9,7 +9,7 @@ deterministic attribution, milestone order), read `docs/design/system-design.md`
 It describes the **target** state; actual progress is in README. **If your change
 drifts from the design doc, update the doc — do not let it rot.**
 
-Repo layout: `docs/engineering/monorepo.md`.
+Repo layout: `docs/engineering/monorepo.md` (Cargo/pnpm workspaces under `apps/`).
 
 ## Before you change
 
@@ -58,7 +58,7 @@ raw field serialisation).
 
 ## Tests
 
-- `cargo test -p ignition` is pure unit tests with no database and must always
+- `cargo test -p ignition` (via `apps/Cargo.toml` / `make test`) is pure unit tests with no database and must always
   pass. Keep tests in the same file (`#[cfg(test)] mod tests`), per Rust convention.
 - Avoid sleep: inject time (`now: DateTime<Utc>`); do not read the wall clock.
   `telegram::verify` and `hmacsig::verify` take `now` for that reason.

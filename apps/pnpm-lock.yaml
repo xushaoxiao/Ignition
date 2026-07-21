@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  apps/tma:
+  tma:
     dependencies:
       '@telegram-apps/sdk':
         specifier: ^3.11.4

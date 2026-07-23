@@ -367,6 +367,8 @@ txn_id = uuid()
     │  UPDATE player SET app_user_id=?, device_ids=append(?)
     │  INSERT attribution (method='deterministic_code', confidence=100,
     │                      is_billable=true, evidence={...})
+    │  -- 仅当租户拥有 billing.performance 权益时才建可计费事件（C4）；
+    │  -- 否则该租户为纯平台费模式，只写 attribution，不进计费流。
     │  INSERT billable_event (type='activation', status='pending')
     └─ COMMIT
     → 返回 { attributed: true, kol_id, reward_grant_token }

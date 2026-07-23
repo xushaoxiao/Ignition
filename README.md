@@ -60,7 +60,7 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 
 1. **Real cloud KMS adapter** — the V2 envelope format, the `KeyProvider` seam, and a credential-free local provider ship (`apps/api/src/secrets.rs`); a real AWS/GCP/Vault KMS is a deploy-time drop-in (implement `KeyProvider`, register it in `build_cipher`). V1 blobs stay readable, so switching is write-forward with no re-encryption downtime.
 2. **Stripe** — month-end already builds `invoice` + `invoice_line` + ledger entries, but nothing is pushed to payments; `invoice.status` stays `draft`.
-3. **Entitlement has few gate points** — capability set and subscription service levels exist and are tested; besides “stop issuing new sessions after past-due grace”, little is wired yet.
+3. **Entitlement gate points still sparse** — `billing.performance` now gates billing-stream creation at redeem (`entitlement::load_for_tenant`), so a tenant without it is platform-fee-only. Remaining gates (`export.raw`, `channel.count` limits, read-only enforcement past the past-due grace window) are still unwired though the resolution layer supports them.
 4. Detail export / diff view / appeal channel (design §5.4 — product features, not internal tools)
 5. Reversal path: `ledger::Txn::reverse` exists and is tested; nothing triggers it yet
 6. KOL console, three-metric dashboard, ClickHouse analytics stream

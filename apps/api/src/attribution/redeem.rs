@@ -7,6 +7,7 @@ use sqlx::{PgPool, Row};
 use super::claim_code::{is_valid_claim_code, normalize_claim_code};
 use super::policy::Policy;
 use crate::db;
+use crate::entitlement::{self, Entitlements};
 use crate::models::{AttributionMethod, BillableStatus, ClaimStatus, event_type};
 use crate::risk;
 
@@ -245,9 +246,15 @@ impl Service {
         let attribution_id: i64 = row.try_get("id")?;
 
         // ---- billable event ----
-        // Only billable attributions create billing events (constraint C1).
+        // Two independent gates guard the billing stream:
+        //   C1 — the method must be deterministic (`is_billable`), enforced in `models.rs`; and
+        //   C4 — the tenant must have `billing.performance`, an entitlement, not a plan check.
+        // The attribution above is recorded regardless; a tenant without performance billing is
+        // platform-fee-only and simply produces no billable event. Resolving entitlements here adds
+        // two small indexed lookups to the redeem path, both RLS-scoped by the open transaction.
+        let entitlements = entitlement::load_for_tenant(&mut tx, req.now).await?;
         let mut held = false;
-        if method.is_billable() {
+        if should_bill(method, &entitlements) {
             let (status, reason) = if verdict.action == risk::Action::Hold {
                 (BillableStatus::Held, Some(verdict.rule))
             } else {
@@ -311,5 +318,70 @@ impl Service {
             policy_version: Some(self.policy.version.to_string()),
             held,
         })
+    }
+}
+
+/// Whether a redemption should create a billable event.
+///
+/// The intersection of two constraints: C1 (only deterministic methods are billable) and C4
+/// (performance billing is an entitlement, not a hard-coded plan check). Both must hold. Extracted
+/// as a pure function so the rule is unit-tested without a database.
+fn should_bill(method: AttributionMethod, entitlements: &Entitlements) -> bool {
+    method.is_billable() && entitlements.check(entitlement::key::BILLING_PERFORMANCE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entitlement::{Grant, key};
+    use chrono::TimeZone;
+    use serde_json::json;
+
+    fn entitlements(billing_performance: Option<bool>) -> Entitlements {
+        let plan = match billing_performance {
+            Some(v) => vec![Grant {
+                key: key::BILLING_PERFORMANCE.to_string(),
+                value: json!(v),
+                expires_at: None,
+            }],
+            None => vec![],
+        };
+        let now = Utc.with_ymd_and_hms(2026, 7, 21, 12, 0, 0).unwrap();
+        Entitlements::resolve(plan, vec![], now)
+    }
+
+    /// The revenue path: a deterministic redemption for a tenant with performance billing on.
+    #[test]
+    fn deterministic_method_bills_when_entitled() {
+        assert!(should_bill(
+            AttributionMethod::DeterministicCode,
+            &entitlements(Some(true))
+        ));
+    }
+
+    /// C4: without `billing.performance` the tenant is platform-fee-only — no billable event, even
+    /// though the attribution is deterministic and still recorded.
+    #[test]
+    fn no_billing_when_performance_entitlement_absent() {
+        assert!(!should_bill(
+            AttributionMethod::DeterministicCode,
+            &entitlements(None)
+        ));
+        assert!(!should_bill(
+            AttributionMethod::DeterministicCode,
+            &entitlements(Some(false))
+        ));
+    }
+
+    /// C1: a non-billable method never bills, regardless of entitlement — redemption only ever uses
+    /// the deterministic method, but the guard must not depend on that.
+    #[test]
+    fn non_billable_method_never_bills() {
+        for m in [
+            AttributionMethod::ClipboardMatch,
+            AttributionMethod::Probabilistic,
+        ] {
+            assert!(!should_bill(m, &entitlements(Some(true))), "{m:?}");
+        }
     }
 }

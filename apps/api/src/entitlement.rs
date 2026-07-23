@@ -7,14 +7,17 @@
 //! Capabilities come from data: `plan_entitlement` for plan defaults,
 //! `tenant_entitlement_override` for sales exceptions; overrides win and may carry expiry.
 
-// Entitlement resolution is complete and tested, but concrete gate points (raw export, Discord
-// channel, cohort analytics) are not wired yet — no callers. Remove when the first paid gate ships.
+// The first gate point is wired: `billing.performance` gates billing-stream creation in
+// `attribution::redeem` (via `load_for_tenant`). The rest of the resolution surface (limits, other
+// keys, service level) is complete and tested but not yet called — keep the allow until those gates
+// ship, then drop it so `dead_code` is a useful signal again.
 #![allow(dead_code)]
 
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use sqlx::{PgConnection, Row};
 
 /// Entitlement keys. Central definitions avoid the same capability spelled two ways in code —
 /// that failure mode is "feature silently off", painful to debug.
@@ -99,6 +102,59 @@ impl Entitlements {
     pub fn within_limit(&self, key: &str, current: i64) -> bool {
         self.limit(key).is_some_and(|max| current < max)
     }
+}
+
+/// Load a tenant's effective entitlements, resolving plan defaults against overrides.
+///
+/// **Must run inside a `db::begin_tenant_tx`.** `subscription` and `tenant_entitlement_override`
+/// are RLS-scoped to `app.tenant_id`, so this reads only the caller tenant's rows; `plan` and
+/// `plan_entitlement` are global reference tables (no RLS). A tenant with no active subscription
+/// simply contributes no plan defaults — overrides can still grant capabilities, and default-deny
+/// (`check`) covers the rest.
+pub async fn load_for_tenant(
+    conn: &mut PgConnection,
+    now: DateTime<Utc>,
+) -> Result<Entitlements, sqlx::Error> {
+    // The partial unique index on `subscription (tenant_id) WHERE status <> 'canceled'` makes this
+    // at most one row.
+    let plan =
+        match sqlx::query("SELECT plan_id FROM subscription WHERE status <> 'canceled' LIMIT 1")
+            .fetch_optional(&mut *conn)
+            .await?
+        {
+            Some(row) => {
+                let plan_id: i64 = row.try_get("plan_id")?;
+                sqlx::query("SELECT key, value FROM plan_entitlement WHERE plan_id = $1")
+                    .bind(plan_id)
+                    .fetch_all(&mut *conn)
+                    .await?
+                    .into_iter()
+                    .map(|r| {
+                        Ok(Grant {
+                            key: r.try_get("key")?,
+                            value: r.try_get("value")?,
+                            expires_at: None,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, sqlx::Error>>()?
+            }
+            None => Vec::new(),
+        };
+
+    let overrides = sqlx::query("SELECT key, value, expires_at FROM tenant_entitlement_override")
+        .fetch_all(&mut *conn)
+        .await?
+        .into_iter()
+        .map(|r| {
+            Ok(Grant {
+                key: r.try_get("key")?,
+                value: r.try_get("value")?,
+                expires_at: r.try_get("expires_at")?,
+            })
+        })
+        .collect::<Result<Vec<_>, sqlx::Error>>()?;
+
+    Ok(Entitlements::resolve(plan, overrides, now))
 }
 
 // ---------------------------------------------------------------- subscription service level

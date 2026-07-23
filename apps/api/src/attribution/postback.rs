@@ -14,7 +14,7 @@ use sqlx::{PgPool, Row};
 
 use super::policy::Policy;
 use crate::db;
-use crate::models::{event_type, BillableStatus, Cents};
+use crate::models::{BillableStatus, Cents, event_type};
 
 /// Note there is **no** "no attribution" error variant. Most main-app users are not from our channel;
 /// missing attribution is normal — accept the postback with `attributed = false`. Making it an error

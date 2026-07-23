@@ -7,7 +7,7 @@ use sqlx::{PgPool, Row};
 use super::claim_code::{is_valid_claim_code, normalize_claim_code};
 use super::policy::Policy;
 use crate::db;
-use crate::models::{event_type, AttributionMethod, BillableStatus, ClaimStatus};
+use crate::models::{AttributionMethod, BillableStatus, ClaimStatus, event_type};
 use crate::risk;
 
 #[derive(Debug, thiserror::Error)]

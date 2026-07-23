@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
+use axum::Json;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use chrono::Utc;
 
 use super::{ApiError, AppState};
@@ -54,7 +54,7 @@ pub async fn handle(
                 format!("Invalid request body: {e}"),
                 false,
             )
-            .into_response()
+            .into_response();
         }
     };
 

@@ -284,16 +284,17 @@ async fn run_for_tenant(
     }
 
     // ---- platform fee posting ----
-    if bill.subtotal.is_positive() && pricing.platform_fee.is_positive() {
-        if let Some(sub_id) = pricing.subscription_id {
-            let txn = ledger::charge_platform_fee(
-                tenant_id,
-                sub_id,
-                pricing.platform_fee,
-                &pricing.currency,
-            )?;
-            write_txn(&mut tx, &txn, now).await?;
-        }
+    if bill.subtotal.is_positive()
+        && pricing.platform_fee.is_positive()
+        && let Some(sub_id) = pricing.subscription_id
+    {
+        let txn = ledger::charge_platform_fee(
+            tenant_id,
+            sub_id,
+            pricing.platform_fee,
+            &pricing.currency,
+        )?;
+        write_txn(&mut tx, &txn, now).await?;
     }
 
     // ---- mark reversal credit applied so next period does not double-deduct ----

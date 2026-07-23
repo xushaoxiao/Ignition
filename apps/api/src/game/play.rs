@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::{PgPool, Row};
 
-use super::{draw, Prize};
+use super::{Prize, draw};
 use crate::db;
 use crate::risk;
 

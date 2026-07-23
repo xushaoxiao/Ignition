@@ -129,13 +129,13 @@ pub fn check_redeem(input: &RedeemInput) -> Verdict {
             }),
         );
     }
-    if let Some(elapsed) = input.click_to_redeem {
-        if elapsed.num_milliseconds() < thresholds::MIN_CLICK_TO_REDEEM_MS {
-            return Verdict::hold(
-                "too_fast",
-                serde_json::json!({ "elapsed_ms": elapsed.num_milliseconds() }),
-            );
-        }
+    if let Some(elapsed) = input.click_to_redeem
+        && elapsed.num_milliseconds() < thresholds::MIN_CLICK_TO_REDEEM_MS
+    {
+        return Verdict::hold(
+            "too_fast",
+            serde_json::json!({ "elapsed_ms": elapsed.num_milliseconds() }),
+        );
     }
     if input.tg_user_id > thresholds::NEW_ACCOUNT_TG_USER_ID {
         return Verdict::hold(

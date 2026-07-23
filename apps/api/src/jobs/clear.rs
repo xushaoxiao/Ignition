@@ -95,7 +95,7 @@ async fn run_for_tenant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{event_type, Cents};
+    use crate::models::{Cents, event_type};
     use chrono::{TimeDelta, TimeZone};
 
     fn at(day: u32) -> DateTime<Utc> {

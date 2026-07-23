@@ -14,15 +14,15 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::Json;
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use super::{client_ip, ApiError, AppState};
+use super::{ApiError, AppState, client_ip};
 use crate::attribution::issue::{IssueError, IssueRequest};
 use crate::auth::jwt::{SessionSubject, TokenKind};
 use crate::entitlement::{self, ServiceLevel, SubscriptionStatus};
@@ -103,7 +103,7 @@ pub async fn session(
                 "Campaign not found or has ended",
                 false,
             )
-            .into_response()
+            .into_response();
         }
         Err(e) => {
             tracing::error!(error = %e, "failed to resolve tracking placement");

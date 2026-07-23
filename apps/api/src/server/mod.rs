@@ -23,7 +23,7 @@ mod tma;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -168,12 +168,12 @@ impl IntoResponse for ApiError {
 /// In production, trust only headers injected by known reverse proxies; otherwise clients
 /// can forge IP and bypass IP-based risk rate limits.
 pub fn client_ip(headers: &HeaderMap, peer: SocketAddr) -> Option<String> {
-    if let Some(xff) = headers.get("X-Forwarded-For").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = xff.split(',').next() {
-            let ip = first.trim();
-            if !ip.is_empty() {
-                return Some(ip.to_string());
-            }
+    if let Some(xff) = headers.get("X-Forwarded-For").and_then(|v| v.to_str().ok())
+        && let Some(first) = xff.split(',').next()
+    {
+        let ip = first.trim();
+        if !ip.is_empty() {
+            return Some(ip.to_string());
         }
     }
     Some(peer.ip().to_string())

@@ -6,15 +6,15 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use chrono::Utc;
 use serde::Deserialize;
 
-use super::{client_ip, ApiError, AppState};
+use super::{ApiError, AppState, client_ip};
 use crate::attribution::{RedeemError, RedeemRequest};
 use crate::auth::Scope;
 
@@ -63,7 +63,7 @@ pub async fn handle(
                 format!("Invalid request body: {e}"),
                 false,
             )
-            .into_response()
+            .into_response();
         }
     };
 

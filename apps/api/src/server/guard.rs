@@ -12,9 +12,9 @@ use chrono::{DateTime, Utc};
 use sqlx::Row;
 
 use super::{ApiError, AppState};
+use crate::auth::Caller;
 use crate::auth::apikey::{self, Scope};
 use crate::auth::jwt::{self, TokenKind};
-use crate::auth::Caller;
 
 fn unauthorized(msg: &str) -> ApiError {
     // Always the same code and wording: distinguishing "key missing" from "bad signature"

@@ -242,12 +242,14 @@ mod tests {
         let s = iss.issue(&subject(), now());
         let later = now() + TimeDelta::days(6);
 
-        assert!(iss
-            .verify(&s.access_token, TokenKind::Access, later)
-            .is_err());
-        assert!(iss
-            .verify(&s.refresh_token, TokenKind::Refresh, later)
-            .is_ok());
+        assert!(
+            iss.verify(&s.access_token, TokenKind::Access, later)
+                .is_err()
+        );
+        assert!(
+            iss.verify(&s.refresh_token, TokenKind::Refresh, later)
+                .is_ok()
+        );
     }
 
     /// Rotating the signing key must invalidate all tokens — the only revocation lever for stateless refresh.

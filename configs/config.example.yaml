@@ -38,3 +38,11 @@ attribution:
 #     # aws:   real KMS; a deploy-time adapter (implement secrets::KeyProvider) — not in this binary.
 #     provider: local
 #     # key_id: "arn:aws:kms:...:key/..."   # required by real backends; unused by local
+
+# Payment gateway for `job push-invoices` (sends finalized invoices to the provider).
+# Omit for the default `log` gateway — no external calls, runs the whole push path locally.
+# payments:
+#   # log:    credential-free stand-in (local / CI).
+#   # stripe: real gateway; a deploy-time adapter (implement payments::PaymentGateway) — not in this binary.
+#   provider: log
+#   # api_key_env: STRIPE_SECRET_KEY   # env var the real adapter reads; unused by log

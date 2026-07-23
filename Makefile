@@ -1,5 +1,5 @@
 .PHONY: help up down reset migrate migrate-remote seed secrets keygen build run test lint fmt psql \
-        job-clear job-audit job-settle tma-install tma-dev tma-build tma-typecheck test-all
+        job-clear job-audit job-settle job-push tma-install tma-dev tma-build tma-typecheck test-all
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -31,6 +31,7 @@ reset: down up migrate seed secrets ## Rebuild a clean database ready for end-to
 migrate: ## Run migrations (as admin)
 	$(PSQL) < db/migrations/0001_init.sql
 	$(PSQL) < db/migrations/0002_auth_game_postback.sql
+	$(PSQL) < db/migrations/0003_invoice_payment_push.sql
 	@# Migration creates ignition_app as NOLOGIN (runs on internet-reachable hosted DBs;
 	@# cannot seed default passwords). Local docker is not exposed; enable login here for dev.
 	@# In production, run this separately with a random password.
@@ -40,6 +41,7 @@ migrate-remote: ## Run migrations on remote DB (reads IGNITION_PG_DSN; does not 
 	@test -n "$$IGNITION_PG_DSN" || (echo "IGNITION_PG_DSN is required" && exit 1)
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0001_init.sql
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0002_auth_game_postback.sql
+	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0003_invoice_payment_push.sql
 
 seed: ## Load demo data (tenant / KOL / campaign / prize pool / link)
 	$(PSQL) < db/seed.sql
@@ -72,6 +74,8 @@ job-audit:  ## Ledger invariant audit
 	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job ledger-audit
 job-settle: ## End-of-month settlement
 	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job settle
+job-push:   ## Push finalized invoices to the payments gateway
+	cargo run $(MANIFEST) $(PKG) -q -- $(CFG) job push-invoices
 
 test: ## API unit tests (no database)
 	cargo test $(MANIFEST) $(PKG)

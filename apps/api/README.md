@@ -37,7 +37,8 @@ src/
   auth/               API Key (S2S), JWT (TMA)
   attribution/        policy, claim codes, redeem, postback, query
   game/               authoritative play + inventory
-  jobs/               clear-holds, ledger-audit, settle
+  payments.rs         payment gateway seam (invoice push); log gateway + Stripe drop-in
+  jobs/               clear-holds, ledger-audit, settle, push-invoices
   server/             HTTP handlers
 ```
 

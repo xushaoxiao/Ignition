@@ -21,6 +21,7 @@ mod hmacsig;
 mod jobs;
 mod ledger;
 mod models;
+mod payments;
 mod risk;
 mod secrets;
 mod server;
@@ -67,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
         Some("job") => {
             let name = args.get(2).context("usage: ignition <config> job <name>")?;
             let pool = connect_db(&cfg).await?;
-            run_job(name, &pool).await
+            run_job(name, &pool, &cfg).await
         }
         _ => serve(cfg, policy, cipher).await,
     }
@@ -130,7 +131,7 @@ async fn connect_db(cfg: &config::Config) -> anyhow::Result<sqlx::PgPool> {
     Ok(pool)
 }
 
-async fn run_job(name: &str, pool: &sqlx::PgPool) -> anyhow::Result<()> {
+async fn run_job(name: &str, pool: &sqlx::PgPool, cfg: &config::Config) -> anyhow::Result<()> {
     let now = Utc::now();
     match name {
         "clear-holds" => {
@@ -157,9 +158,42 @@ async fn run_job(name: &str, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             let period = jobs::settle::Period::previous_month(now);
             jobs::settle::run(pool, period, now).await?;
         }
+        "push-invoices" => run_push_invoices(pool, cfg, now).await?,
         other => {
-            anyhow::bail!("unknown job {other:?}; options: clear-holds / ledger-audit / settle")
+            anyhow::bail!(
+                "unknown job {other:?}; options: clear-holds / ledger-audit / settle / push-invoices"
+            )
         }
+    }
+    Ok(())
+}
+
+/// Push finalized invoices to the configured payments gateway.
+///
+/// The gateway is chosen at the call site so dispatch stays static (the job is generic over the
+/// gateway). `log` is credential-free; a real Stripe adapter is a deploy-time drop-in — implement
+/// `payments::PaymentGateway` and add its arm here, mirroring the KMS seam in `build_cipher`.
+async fn run_push_invoices(
+    pool: &sqlx::PgPool,
+    cfg: &config::Config,
+    now: chrono::DateTime<Utc>,
+) -> anyhow::Result<()> {
+    let summary = match cfg.payments.provider {
+        config::PaymentProvider::Log => jobs::push::run(pool, &payments::LogGateway, now).await?,
+        config::PaymentProvider::Stripe => anyhow::bail!(
+            "payments.provider = stripe is not built into this binary. The Stripe adapter is a \
+             deploy-time drop-in: implement payments::PaymentGateway over the Stripe Invoices API \
+             and register it in run_push_invoices. Use provider = log for a no-network run."
+        ),
+    };
+    tracing::info!(
+        pushed = summary.pushed,
+        failed = summary.failed,
+        "invoice push complete"
+    );
+    if summary.failed > 0 {
+        // Non-zero exit so the scheduler alerts — unpaid invoices are revenue not collected.
+        anyhow::bail!("invoice push: {} tenant(s) failed", summary.failed);
     }
     Ok(())
 }

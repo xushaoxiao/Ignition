@@ -13,6 +13,7 @@
 
 pub mod audit;
 pub mod clear;
+pub mod push;
 pub mod settle;
 
 use sqlx::{PgPool, Row};

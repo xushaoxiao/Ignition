@@ -51,7 +51,8 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 | **Claim-code issue** | `apps/api/src/attribution/issue.rs` | One code per play; dual-platform landing guidance |
 | **Monetisation postback** | `apps/api/src/attribution/postback.rs` | Analytics stream separated from billing stream |
 | **Entitlement gating** | `apps/api/src/entitlement.rs` | Plan defaults + tenant override; default off |
-| **Scheduled jobs** | `apps/api/src/jobs/` | Clear holds / ledger audit / month-end settle |
+| **Scheduled jobs** | `apps/api/src/jobs/` | Clear holds / ledger audit / month-end settle / invoice push |
+| **Payment push (gateway-ready)** | `apps/api/src/payments.rs` + `jobs/push.rs` | `job push-invoices` sends draft invoices via a `PaymentGateway`; log gateway ships, Stripe is a deploy-time drop-in |
 | **Attribution query API** | `apps/api/src/attribution/query.rs` | `GET /v1/attribution/{app_user_id}`; display-only projection, never exposes `evidence` |
 | **Envelope encryption (KMS-ready)** | `apps/api/src/secrets.rs` | V1/V2 version dispatch; V2 wraps a per-secret DEK via a `KeyProvider`; local provider ships, V1 blobs stay readable |
 | **TMA frontend** | `apps/tma/` | React + Vite + Tailwind; wheel via CSS transform |
@@ -59,7 +60,7 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 ### Not yet shipped (priority order)
 
 1. **Real cloud KMS adapter** — the V2 envelope format, the `KeyProvider` seam, and a credential-free local provider ship (`apps/api/src/secrets.rs`); a real AWS/GCP/Vault KMS is a deploy-time drop-in (implement `KeyProvider`, register it in `build_cipher`). V1 blobs stay readable, so switching is write-forward with no re-encryption downtime.
-2. **Stripe** — month-end already builds `invoice` + `invoice_line` + ledger entries, but nothing is pushed to payments; `invoice.status` stays `draft`.
+2. **Real Stripe adapter** — the push path ships: `job push-invoices` sends draft invoices through a `PaymentGateway` (log gateway included; idempotent per invoice; `draft → open` on success). Wiring a real Stripe adapter is a deploy-time drop-in (implement `PaymentGateway`, register it in `run_push_invoices`). Subscription-side webhooks (`payment_failed` → grace) are still unhooked.
 3. **Entitlement gate points still sparse** — `billing.performance` now gates billing-stream creation at redeem (`entitlement::load_for_tenant`), so a tenant without it is platform-fee-only. Remaining gates (`export.raw`, `channel.count` limits, read-only enforcement past the past-due grace window) are still unwired though the resolution layer supports them.
 4. Detail export / diff view / appeal channel (design §5.4 — product features, not internal tools)
 5. Reversal path: `ledger::Txn::reverse` exists and is tested; nothing triggers it yet
@@ -125,7 +126,13 @@ Jobs are pulled by an external scheduler on purpose: billing jobs must be re-run
 make job-clear     # hourly: move hold-expired events to cleared
 make job-audit     # daily: ledger invariants; non-zero exit on failure (alert)
 make job-settle    # monthly T+1: invoice the previous month
+make job-push      # after settle: push draft invoices to the payments gateway (draft → open)
 ```
+
+The push job is separate from settlement on purpose: a gateway outage must never block invoice
+generation, and the push is idempotent (unsent-only selection plus a per-invoice idempotency key),
+so it is safe to rerun. The default `log` gateway makes no external calls; a real Stripe adapter is
+a deploy-time drop-in behind the `PaymentGateway` trait.
 
 ### TMA frontend
 

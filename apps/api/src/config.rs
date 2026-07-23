@@ -11,6 +11,32 @@ pub struct Config {
     pub attribution: Attribution,
     #[serde(default)]
     pub secrets: Secrets,
+    #[serde(default)]
+    pub payments: Payments,
+}
+
+/// Payment gateway selection for the invoice push job.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Payments {
+    /// Gateway backing `job push-invoices`. Defaults to `log` — the credential-free stand-in that
+    /// runs the whole push path with no external calls. `stripe` is a deploy-time adapter.
+    #[serde(default)]
+    pub provider: PaymentProvider,
+    /// Name of the environment variable holding the provider's secret key. Read by the real Stripe
+    /// adapter (a deploy-time drop-in), so it has no reader in this binary yet.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub api_key_env: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentProvider {
+    /// Log-only gateway — no external call. Local runs and CI.
+    #[default]
+    Log,
+    /// Stripe — a deploy-time adapter, not compiled into this binary.
+    Stripe,
 }
 
 /// Secret material.

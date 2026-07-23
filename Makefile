@@ -9,9 +9,12 @@ help:
 COMPOSE_FILE ?= docker/compose.yml
 export COMPOSE_FILE
 COMPOSE   = docker compose
-PSQL      = $(COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d ignition
 CFG       = configs/config.yaml
 DB_SCHEMA ?= ignition
+# Objects live in $(DB_SCHEMA), not public. `-v schema` feeds the `:"schema"` variable the .sql
+# files expect; PGOPTIONS covers inline `-c` SQL, which has no place to run `SET search_path`.
+PSQL      = $(COMPOSE) exec -T -e PGOPTIONS="-c search_path=$(DB_SCHEMA),public" postgres \
+            psql -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) -U postgres -d ignition
 
 # Language workspaces live under apps/ — not the repository root.
 # cargo requires --manifest-path after the subcommand.
@@ -51,8 +54,11 @@ keygen: ## Generate a new master key
 
 # Bot token and API key are ciphertext — they must not live in seed.sql in the repo or
 # encryption is theatre. `ignition seal` encrypts here; ciphertext exists only in local DB.
-secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY)
-	@BOT=$$(cargo run $(MANIFEST) $(PKG) -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
+secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY + IGNITION_JWT_KEY)
+	@# `set -e`: without it a failing `seal` still leaves the recipe green and inserts empty
+	@# ciphertext — the service then starts and only fails later, at decrypt time.
+	@set -e; \
+	 BOT=$$(cargo run $(MANIFEST) $(PKG) -q -- $(CFG) seal '123456:AA-demo-bot-token'); \
 	 KEY=$$(cargo run $(MANIFEST) $(PKG) -q -- $(CFG) seal 'demo-api-secret'); \
 	 $(PSQL) -c "INSERT INTO bot (id, tenant_id, username, token_enc) \
 	             VALUES (1, 1, 'demo_bot', '$$BOT') \
@@ -88,7 +94,7 @@ fmt: ## Format API
 	cargo fmt $(MANIFEST) --all
 
 psql: ## Open database shell
-	$(COMPOSE) exec postgres psql -U postgres -d ignition
+	$(COMPOSE) exec -e PGOPTIONS="-c search_path=$(DB_SCHEMA),public" postgres psql -U postgres -d ignition
 
 tma-install: ## Install frontend dependencies
 	$(PNPM) install

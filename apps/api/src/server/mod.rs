@@ -1,11 +1,12 @@
 //! Public HTTP API.
 //!
 //! Integration cost directly affects SaaS sales friction, so the main app only needs
-//! two endpoints:
+//! one required endpoint, plus two optional ones:
 //!
 //! ```text
-//! POST /v1/claims/redeem       Redeem claim code (required)
-//! POST /v1/postback/purchase   Monetisation postback (optional in MVP)
+//! POST /v1/claims/redeem            Redeem claim code (required)
+//! POST /v1/postback/purchase        Monetisation postback (optional in MVP)
+//! GET  /v1/attribution/{app_user}   Look up a user's inviter (optional)
 //! ```
 //!
 //! Auth uses API Key + HMAC signature rather than OAuth — one fewer authorisation
@@ -15,6 +16,7 @@
 //! after initData verification — fully separate from S2S credentials; the frontend
 //! cannot hold long-lived secrets.
 
+mod attribution_query;
 mod guard;
 mod postback;
 mod redeem;
@@ -59,6 +61,10 @@ pub fn router(state: Arc<AppState>, cors_origins: &[String]) -> Router {
         // S2S: API Key + HMAC
         .route("/v1/claims/redeem", post(redeem::handle))
         .route("/v1/postback/purchase", post(postback::handle))
+        .route(
+            "/v1/attribution/{app_user_id}",
+            get(attribution_query::handle),
+        )
         // TMA: initData → JWT
         .route("/v1/tma/session", post(tma::session))
         .route("/v1/tma/session/refresh", post(tma::refresh))

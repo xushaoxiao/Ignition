@@ -4,6 +4,7 @@ pub mod claim_code;
 pub mod issue;
 pub mod policy;
 pub mod postback;
+pub mod query;
 pub mod redeem;
 
 pub use policy::by_version;

@@ -35,7 +35,7 @@ src/
   telegram.rs         initData verify
   hmacsig.rs          HMAC + time window
   auth/               API Key (S2S), JWT (TMA)
-  attribution/        policy, claim codes, redeem, postback
+  attribution/        policy, claim codes, redeem, postback, query
   game/               authoritative play + inventory
   jobs/               clear-holds, ledger-audit, settle
   server/             HTTP handlers

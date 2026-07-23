@@ -104,8 +104,9 @@ impl AttributionMethod {
 /// `evidence` stores the full input snapshot at decision time — the sole evidence source for KOL
 /// appeals; append-only. `policy_version` points at a customer-visible rules document; changes
 /// require a new version number.
-// TODO(query): attribution query endpoint (GET /v1/attribution/:app_user_id) and appeal
-// recomputation will read this — remove allow when shipped.
+// The lookup endpoint (`GET /v1/attribution/{app_user_id}`) reads a display-only projection in
+// `attribution::query`, not this full row — `evidence` must not reach that path. This struct still
+// awaits its first full-row consumer (appeal recomputation), hence the allow.
 #[allow(dead_code)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Attribution {

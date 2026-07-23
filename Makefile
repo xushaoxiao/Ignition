@@ -56,7 +56,7 @@ secrets: ## Write demo bot token and API key (requires IGNITION_MASTER_KEY)
 	             VALUES (1, 1, 'demo_bot', '$$BOT') \
 	             ON CONFLICT (id) DO UPDATE SET token_enc = EXCLUDED.token_enc; \
 	             INSERT INTO api_key (id, tenant_id, key_id, secret_enc, label, scopes) \
-	             VALUES (1, 1, 'ik_demo', '$$KEY', 'Demo main app', '{redeem,postback}') \
+	             VALUES (1, 1, 'ik_demo', '$$KEY', 'Demo main app', '{redeem,postback,attribution:read}') \
 	             ON CONFLICT (id) DO UPDATE SET secret_enc = EXCLUDED.secret_enc; \
 	             SELECT setval('bot_id_seq', 1), setval('api_key_id_seq', 1);"
 

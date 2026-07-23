@@ -52,6 +52,7 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 | **Monetisation postback** | `apps/api/src/attribution/postback.rs` | Analytics stream separated from billing stream |
 | **Entitlement gating** | `apps/api/src/entitlement.rs` | Plan defaults + tenant override; default off |
 | **Scheduled jobs** | `apps/api/src/jobs/` | Clear holds / ledger audit / month-end settle |
+| **Attribution query API** | `apps/api/src/attribution/query.rs` | `GET /v1/attribution/{app_user_id}`; display-only projection, never exposes `evidence` |
 | **TMA frontend** | `apps/tma/` | React + Vite + Tailwind; wheel via CSS transform |
 
 ### Not yet shipped (priority order)
@@ -63,7 +64,6 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 5. Reversal path: `ledger::Txn::reverse` exists and is tested; nothing triggers it yet
 6. KOL console, three-metric dashboard, ClickHouse analytics stream
 7. L3 channel-level risk scan
-8. Attribution query API `GET /v1/attribution/:app_user_id`
 
 ---
 

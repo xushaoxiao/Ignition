@@ -102,8 +102,8 @@ impl Config {
     pub fn load(path: &str) -> anyhow::Result<Config> {
         let raw = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("failed to read config {path}: {e}"))?;
-        let mut cfg: Config =
-            serde_yaml::from_str(&raw).map_err(|e| anyhow::anyhow!("failed to parse config {path}: {e}"))?;
+        let mut cfg: Config = serde_yaml::from_str(&raw)
+            .map_err(|e| anyhow::anyhow!("failed to parse config {path}: {e}"))?;
 
         if let Ok(dsn) = std::env::var("IGNITION_PG_DSN") {
             cfg.postgres.dsn = dsn;

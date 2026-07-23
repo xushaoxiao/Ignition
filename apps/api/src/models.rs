@@ -320,7 +320,10 @@ mod tests {
             (Billed, Reversed),
         ];
         for (from, to) in legal {
-            assert!(from.can_transition_to(to), "{from:?} -> {to:?} should be legal");
+            assert!(
+                from.can_transition_to(to),
+                "{from:?} -> {to:?} should be legal"
+            );
         }
     }
 
@@ -335,7 +338,10 @@ mod tests {
             (Held, Billed),      // held cannot invoice directly
         ];
         for (from, to) in illegal {
-            assert!(!from.can_transition_to(to), "{from:?} -> {to:?} should be illegal");
+            assert!(
+                !from.can_transition_to(to),
+                "{from:?} -> {to:?} should be illegal"
+            );
         }
     }
 

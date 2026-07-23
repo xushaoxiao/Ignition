@@ -221,7 +221,11 @@ mod tests {
         )];
 
         let e = Entitlements::resolve(plan, promo, now());
-        assert_eq!(e.limit(key::CHANNEL_COUNT), Some(1), "should fall back to plan default");
+        assert_eq!(
+            e.limit(key::CHANNEL_COUNT),
+            Some(1),
+            "should fall back to plan default"
+        );
     }
 
     #[test]

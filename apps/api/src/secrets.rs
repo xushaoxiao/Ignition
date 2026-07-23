@@ -174,7 +174,10 @@ mod tests {
         let c = cipher();
         let a = c.seal(b"same plaintext");
         let b = c.seal(b"same plaintext");
-        assert_ne!(a, b, "two encryptions produced identical ciphertext — nonce was reused");
+        assert_ne!(
+            a, b,
+            "two encryptions produced identical ciphertext — nonce was reused"
+        );
     }
 
     #[test]

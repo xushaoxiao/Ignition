@@ -169,7 +169,11 @@ mod tests {
         let err = transition(&mut ev, BillableStatus::Cleared, None, at(10)).unwrap_err();
 
         assert_eq!(err.from, BillableStatus::Billed);
-        assert_eq!(ev.status, BillableStatus::Billed, "illegal transition must not change status");
+        assert_eq!(
+            ev.status,
+            BillableStatus::Billed,
+            "illegal transition must not change status"
+        );
     }
 
     #[test]
@@ -200,7 +204,10 @@ mod tests {
         assert!(!ready_to_clear(&ev, at(10)), "must not clear during hold");
 
         ev.hold_until = at(9);
-        assert!(ready_to_clear(&ev, at(10)), "should clear after hold expires");
+        assert!(
+            ready_to_clear(&ev, at(10)),
+            "should clear after hold expires"
+        );
     }
 
     /// Risk-held events must not auto-clear with time — hold means "no billing until reviewed".

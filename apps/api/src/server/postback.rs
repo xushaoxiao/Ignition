@@ -64,10 +64,13 @@ pub async fn handle(
         .await
     {
         Ok(res) => Json(res).into_response(),
-        Err(PostbackError::BadAmount) => {
-            ApiError::new(StatusCode::BAD_REQUEST, "bad_amount", "Amount must not be negative", false)
-                .into_response()
-        }
+        Err(PostbackError::BadAmount) => ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "bad_amount",
+            "Amount must not be negative",
+            false,
+        )
+        .into_response(),
         Err(PostbackError::Db(e)) => {
             tracing::error!(error = %e, "postback processing failed");
             ApiError::internal().into_response()

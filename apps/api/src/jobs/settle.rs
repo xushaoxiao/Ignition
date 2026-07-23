@@ -25,7 +25,8 @@ impl Period {
     /// Previous calendar month relative to `now` — T+1 month-end jobs settle the prior month.
     pub fn previous_month(now: DateTime<Utc>) -> Period {
         let d = now.date_naive();
-        let this_month = NaiveDate::from_ymd_opt(d.year(), d.month(), 1).expect("day 1 is always a valid date");
+        let this_month =
+            NaiveDate::from_ymd_opt(d.year(), d.month(), 1).expect("day 1 is always a valid date");
         Period {
             start: prev_month_first_day(this_month),
             end: this_month,
@@ -113,7 +114,10 @@ pub fn assemble(inputs: Inputs) -> Bill {
         let unit = capped.billable[0].amount_cents;
         bill.lines.push(Line {
             kind: line_kind::CPA,
-            description: format!("Performance share · {} deterministic conversions", capped.billable.len()),
+            description: format!(
+                "Performance share · {} deterministic conversions",
+                capped.billable.len()
+            ),
             quantity: capped.billable.len() as i64,
             unit_cents: unit,
             amount_cents: capped.billed,

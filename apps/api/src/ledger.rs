@@ -258,8 +258,16 @@ mod tests {
         let txn = charge_cpa(1, &event(200)).expect("should construct");
         let bal = balance(txn.entries());
 
-        assert_eq!(bal[&Account::TenantReceivable], 200, "customer receivable increases");
-        assert_eq!(bal[&Account::PlatformRevenue], -200, "revenue credit increases");
+        assert_eq!(
+            bal[&Account::TenantReceivable],
+            200,
+            "customer receivable increases"
+        );
+        assert_eq!(
+            bal[&Account::PlatformRevenue],
+            -200,
+            "revenue credit increases"
+        );
     }
 
     /// After reversal, net must be zero and original entries must remain — that is auditability.
@@ -268,7 +276,11 @@ mod tests {
         let orig = charge_cpa(1, &event(200)).unwrap();
         let rev = orig.reverse("reversal", 42);
 
-        assert_ne!(orig.id(), rev.id(), "reversal is a new transaction, not an in-place edit");
+        assert_ne!(
+            orig.id(),
+            rev.id(),
+            "reversal is a new transaction, not an in-place edit"
+        );
 
         let combined: Vec<Entry> = orig
             .entries()
@@ -277,7 +289,10 @@ mod tests {
             .cloned()
             .collect();
         for (account, amount) in balance(&combined) {
-            assert_eq!(amount, 0, "account {account:?} should net to zero after reversal");
+            assert_eq!(
+                amount, 0,
+                "account {account:?} should net to zero after reversal"
+            );
         }
     }
 

@@ -252,7 +252,10 @@ mod tests {
             revenue_balance: Cents(200),
             unbalanced_txns: vec![],
         };
-        assert!(check(1, &f).is_empty(), "subscription fee must not count as invoice mismatch");
+        assert!(
+            check(1, &f).is_empty(),
+            "subscription fee must not count as invoice mismatch"
+        );
     }
 
     #[test]

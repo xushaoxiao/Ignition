@@ -111,8 +111,18 @@ fn map_error(err: RedeemError) -> ApiError {
             "Claim code not found",
             false,
         ),
-        AlreadyUsed => ApiError::new(StatusCode::CONFLICT, "code_used", "Claim code already redeemed", false),
-        Expired => ApiError::new(StatusCode::GONE, "code_expired", "Claim code expired", false),
+        AlreadyUsed => ApiError::new(
+            StatusCode::CONFLICT,
+            "code_used",
+            "Claim code already redeemed",
+            false,
+        ),
+        Expired => ApiError::new(
+            StatusCode::GONE,
+            "code_expired",
+            "Claim code expired",
+            false,
+        ),
         AlreadyBound => ApiError::new(
             StatusCode::CONFLICT,
             "already_bound",
@@ -121,7 +131,12 @@ fn map_error(err: RedeemError) -> ApiError {
         ),
         RiskDenied(rule) => {
             tracing::info!(rule, "redemption rejected by risk check");
-            ApiError::new(StatusCode::FORBIDDEN, "risk_denied", "Risk check denied", false)
+            ApiError::new(
+                StatusCode::FORBIDDEN,
+                "risk_denied",
+                "Risk check denied",
+                false,
+            )
         }
         Db(e) => {
             tracing::error!(error = %e, "redemption failed");

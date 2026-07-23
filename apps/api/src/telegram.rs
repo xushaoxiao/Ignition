@@ -231,7 +231,8 @@ mod tests {
         let now = Utc::now();
         let raw = sign_init_data(TEST_BOT_TOKEN, &valid_fields(now));
 
-        let got = verify(&raw, TEST_BOT_TOKEN, DEFAULT_MAX_AGE, now).expect("verification should pass");
+        let got =
+            verify(&raw, TEST_BOT_TOKEN, DEFAULT_MAX_AGE, now).expect("verification should pass");
 
         assert_eq!(got.user.id, 777_001);
         assert_eq!(got.user.username, "dave");
@@ -315,6 +316,7 @@ mod tests {
         let raw = sign_init_data(TEST_BOT_TOKEN, &valid_fields(now))
             + "&signature=ed25519-third-party-sig";
 
-        verify(&raw, TEST_BOT_TOKEN, DEFAULT_MAX_AGE, now).expect("signature field must not affect verification");
+        verify(&raw, TEST_BOT_TOKEN, DEFAULT_MAX_AGE, now)
+            .expect("signature field must not affect verification");
     }
 }

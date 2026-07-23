@@ -57,7 +57,9 @@ async fn main() -> anyhow::Result<()> {
 
     match args.get(1).map(String::as_str) {
         Some("seal") => {
-            let plaintext = args.get(2).context("usage: ignition <config> seal <plaintext>")?;
+            let plaintext = args
+                .get(2)
+                .context("usage: ignition <config> seal <plaintext>")?;
             // Emit a Postgres bytea literal suitable for pasting into SQL.
             println!("\\x{}", hex::encode(cipher.seal(plaintext.as_bytes())));
             Ok(())
@@ -106,14 +108,21 @@ async fn run_job(name: &str, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     match name {
         "clear-holds" => {
             let r = jobs::clear::run(pool, now).await?;
-            tracing::info!(scanned = r.scanned, cleared = r.cleared, "hold clearance complete");
+            tracing::info!(
+                scanned = r.scanned,
+                cleared = r.cleared,
+                "hold clearance complete"
+            );
         }
         "ledger-audit" => {
             let violations = jobs::audit::run(pool).await?;
             if !violations.is_empty() {
                 // Non-zero exit so schedulers alert — ledger mismatch means issued invoices may be wrong;
                 // not something to bury in logs.
-                anyhow::bail!("ledger invariant violated, {} violation(s)", violations.len());
+                anyhow::bail!(
+                    "ledger invariant violated, {} violation(s)",
+                    violations.len()
+                );
             }
             tracing::info!("ledger audit passed");
         }
@@ -121,7 +130,9 @@ async fn run_job(name: &str, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             let period = jobs::settle::Period::previous_month(now);
             jobs::settle::run(pool, period, now).await?;
         }
-        other => anyhow::bail!("unknown job {other:?}; options: clear-holds / ledger-audit / settle"),
+        other => {
+            anyhow::bail!("unknown job {other:?}; options: clear-holds / ledger-audit / settle")
+        }
     }
     Ok(())
 }

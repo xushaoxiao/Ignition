@@ -52,8 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| "configs/config.yaml".to_string());
     let cfg = config::Config::load(&config_path)?;
     let policy = attribution::by_version(&cfg.attribution.policy_version)?;
-    let cipher = secrets::Cipher::from_master_key_b64(&cfg.secrets.master_key_b64)
-        .context("IGNITION_MASTER_KEY invalid")?;
+    let cipher = build_cipher(&cfg)?;
 
     match args.get(1).map(String::as_str) {
         Some("seal") => {
@@ -61,7 +60,8 @@ async fn main() -> anyhow::Result<()> {
                 .get(2)
                 .context("usage: ignition <config> seal <plaintext>")?;
             // Emit a Postgres bytea literal suitable for pasting into SQL.
-            println!("\\x{}", hex::encode(cipher.seal(plaintext.as_bytes())));
+            let blob = cipher.seal(plaintext.as_bytes())?;
+            println!("\\x{}", hex::encode(blob));
             Ok(())
         }
         Some("job") => {
@@ -70,6 +70,33 @@ async fn main() -> anyhow::Result<()> {
             run_job(name, &pool).await
         }
         _ => serve(cfg, policy, cipher).await,
+    }
+}
+
+/// Build the secret cipher from config: V1 direct master-key by default, or V2 envelope
+/// encryption when `secrets.kms` is set.
+///
+/// This is the single registration point for KMS backends. `local` is credential-free and works
+/// everywhere; a real KMS (AWS/GCP/Vault) is a deploy-time drop-in — implement
+/// `secrets::KeyProvider` and add its arm here. The master key is always required so historical
+/// V1 blobs stay readable after switching to KMS.
+fn build_cipher(cfg: &config::Config) -> anyhow::Result<secrets::Cipher> {
+    let master = &cfg.secrets.master_key_b64;
+    match &cfg.secrets.kms {
+        None => secrets::Cipher::from_master_key_b64(master).context("IGNITION_MASTER_KEY invalid"),
+        Some(kms) => match kms.provider {
+            config::KmsProvider::Local => {
+                let provider = secrets::LocalKeyProvider::from_master_key_b64(master)
+                    .context("IGNITION_MASTER_KEY invalid")?;
+                secrets::Cipher::with_kms(master, Arc::new(provider))
+                    .context("IGNITION_MASTER_KEY invalid")
+            }
+            config::KmsProvider::Aws => anyhow::bail!(
+                "secrets.kms.provider = aws is not built into this binary. The AWS KMS adapter is a \
+                 deploy-time drop-in: implement secrets::KeyProvider against an AWS KMS client and \
+                 register it in build_cipher. Use provider = local for credential-free envelope mode."
+            ),
+        },
     }
 }
 

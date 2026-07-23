@@ -25,3 +25,16 @@ postgres:
 attribution:
   # Matches docs/product/attribution-policy-v1.md. Changes require a new version and customer notice.
   policy_version: "v1"
+
+# Secret material (bot tokens, API key secrets) is encrypted at rest. The master key and JWT key
+# come from environment variables only (IGNITION_MASTER_KEY / IGNITION_JWT_KEY) — never config.
+#
+# Envelope encryption (optional). Omit this block for V1 direct master-key mode (the default).
+# When present, new _enc writes are V2 envelope blobs (per-secret data key wrapped by a KMS);
+# existing V1 blobs stay readable, so switching needs no re-encryption downtime.
+# secrets:
+#   kms:
+#     # local: credential-free, derives a KEK from the master key — for local runs and CI.
+#     # aws:   real KMS; a deploy-time adapter (implement secrets::KeyProvider) — not in this binary.
+#     provider: local
+#     # key_id: "arn:aws:kms:...:key/..."   # required by real backends; unused by local

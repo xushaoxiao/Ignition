@@ -15,11 +15,12 @@
 > 变现回传（分析流/计费流分离）。
 >
 > **已交付（续）**：归因查询 API（`GET /v1/attribution/{app_user_id}`，只读投影，
-> 不含 evidence）。
+> 不含 evidence）；信封加密框架（secrets.rs 的 V1/V2 版本分派 + `KeyProvider` 接缝 +
+> 本地 provider，真实云 KMS 为部署时接入的薄适配层）。
 >
 > **尚未交付（相对本文目标态）**：Stripe 收款推送、KOL/客户控制台与三指标看板、
 > ClickHouse 分析流、明细导出/差异视图/申诉通道、冲正触发接口、L3 渠道扫描、
-> KMS、完整 entitlement 门控点。Event Bus 仍以 DB 约束承担幂等，
+> 真实云 KMS 适配器、完整 entitlement 门控点。Event Bus 仍以 DB 约束承担幂等，
 > Redis 已在 compose 就位但代码未用。
 >
 > 里程碑原文（§12）保留作规划参考；上表以 README「Current status」为准。

@@ -28,6 +28,35 @@ pub struct Secrets {
     /// Environment variable: `IGNITION_JWT_KEY`
     #[serde(skip)]
     pub jwt_key: String,
+    /// Envelope-encryption (KMS) settings. Absent ⇒ V1 direct master-key mode (the default).
+    /// Present ⇒ new `_enc` writes are V2 envelope blobs; existing V1 blobs still decrypt.
+    #[serde(default)]
+    pub kms: Option<Kms>,
+}
+
+/// KMS envelope-encryption configuration.
+///
+/// This selects the [`KeyProvider`](crate::secrets::KeyProvider) that wraps per-secret data keys.
+/// Only `local` is built into this binary today (credential-free, derives a KEK from the master
+/// key — for local runs and CI). `aws` (and other real KMS backends) are deploy-time adapters:
+/// implement the trait and register it in `main::build_cipher`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Kms {
+    pub provider: KmsProvider,
+    /// KMS key identifier (e.g. an AWS key ARN). Unused by `local`; the real KMS adapter (a
+    /// deploy-time drop-in) will read it — hence no reader in this binary yet.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub key_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KmsProvider {
+    /// Local KEK derived from the master key — no external service.
+    Local,
+    /// AWS KMS — deploy-time adapter, not compiled into this binary.
+    Aws,
 }
 
 #[derive(Debug, Clone, Deserialize)]

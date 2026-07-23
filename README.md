@@ -53,11 +53,12 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 | **Entitlement gating** | `apps/api/src/entitlement.rs` | Plan defaults + tenant override; default off |
 | **Scheduled jobs** | `apps/api/src/jobs/` | Clear holds / ledger audit / month-end settle |
 | **Attribution query API** | `apps/api/src/attribution/query.rs` | `GET /v1/attribution/{app_user_id}`; display-only projection, never exposes `evidence` |
+| **Envelope encryption (KMS-ready)** | `apps/api/src/secrets.rs` | V1/V2 version dispatch; V2 wraps a per-secret DEK via a `KeyProvider`; local provider ships, V1 blobs stay readable |
 | **TMA frontend** | `apps/tma/` | React + Vite + Tailwind; wheel via CSS transform |
 
 ### Not yet shipped (priority order)
 
-1. **Master key from env, not yet KMS** — ciphertext format in `apps/api/src/secrets.rs` already carries a version byte; KMS is a `V2` branch, old blobs stay readable, no downtime migration.
+1. **Real cloud KMS adapter** — the V2 envelope format, the `KeyProvider` seam, and a credential-free local provider ship (`apps/api/src/secrets.rs`); a real AWS/GCP/Vault KMS is a deploy-time drop-in (implement `KeyProvider`, register it in `build_cipher`). V1 blobs stay readable, so switching is write-forward with no re-encryption downtime.
 2. **Stripe** — month-end already builds `invoice` + `invoice_line` + ledger entries, but nothing is pushed to payments; `invoice.status` stays `draft`.
 3. **Entitlement has few gate points** — capability set and subscription service levels exist and are tested; besides “stop issuing new sessions after past-due grace”, little is wired yet.
 4. Detail export / diff view / appeal channel (design §5.4 — product features, not internal tools)

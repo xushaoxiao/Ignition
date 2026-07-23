@@ -1,5 +1,9 @@
 # Ignition
 
+[![CI](https://github.com/xushaoxiao/Ignition/actions/workflows/ci.yml/badge.svg)](https://github.com/xushaoxiao/Ignition/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/rust-2021-CE422B?logo=rust&logoColor=white)](apps/api/Cargo.toml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](apps/tma/package.json)
+
 Private-domain gamified growth with end-to-end attribution.
 
 **This product is not a “gamification growth toolkit”. It is an attribution machine that can issue trustworthy invoices.**

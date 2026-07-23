@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # Caches the cargo registry and target/ keyed on Cargo.lock.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps
+
+      # Same commands as `make lint` — clippy denies warnings, fmt only checks.
+      - name: Clippy
+        run: cargo clippy --manifest-path apps/Cargo.toml -p ignition --all-targets -- -D warnings
+
+      - name: Rustfmt
+        run: cargo fmt --manifest-path apps/Cargo.toml --all -- --check
+
+      # `make test` — pure unit tests, no database required.
+      - name: Test
+        run: cargo test --manifest-path apps/Cargo.toml -p ignition
+
+  tma:
+    name: TMA (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir apps install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --dir apps --filter @ignition/tma typecheck
+
+      - name: Build
+        run: pnpm --dir apps --filter @ignition/tma build

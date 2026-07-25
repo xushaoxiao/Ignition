@@ -7,7 +7,7 @@
 //! confidence < 100. They populate analytics dashboards and multi-channel marketing views,
 //! but NEVER enter billing streams or generate invoices.
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::models::{AttributionMethod, Cents};
@@ -76,19 +76,19 @@ pub struct ProbabilisticMatch {
 /// Non-deterministic matcher implementation.
 pub struct ProbabilisticMatcher {
     /// Maximum lookback window for fingerprint matching (default: 24h).
-    pub max_window: Duration,
+    pub max_window: TimeDelta,
 }
 
 impl Default for ProbabilisticMatcher {
     fn default() -> Self {
         Self {
-            max_window: Duration::hours(24),
+            max_window: TimeDelta::hours(24),
         }
     }
 }
 
 impl ProbabilisticMatcher {
-    pub fn new(max_window: Duration) -> Self {
+    pub fn new(max_window: TimeDelta) -> Self {
         Self { max_window }
     }
 
@@ -227,7 +227,7 @@ mod tests {
             kol_id: 42,
             ip_hash: "ip_123".into(),
             ua_hash: "ua_abc".into(),
-            touched_at: now - Duration::minutes(30),
+            touched_at: now - TimeDelta::minutes(30),
             click_payload: None,
         };
 
@@ -252,7 +252,7 @@ mod tests {
                 kol_id: 10,
                 ip_hash: "ip_1".into(),
                 ua_hash: "ua_1".into(),
-                touched_at: now - Duration::hours(5),
+                touched_at: now - TimeDelta::hours(5),
                 click_payload: None,
             },
             Touchpoint {
@@ -262,7 +262,7 @@ mod tests {
                 kol_id: 11,
                 ip_hash: "ip_1".into(),
                 ua_hash: "ua_1".into(),
-                touched_at: now - Duration::hours(1),
+                touched_at: now - TimeDelta::hours(1),
                 click_payload: None,
             },
         ];
@@ -286,7 +286,7 @@ mod tests {
                 kol_id: 10,
                 ip_hash: "ip_1".into(),
                 ua_hash: "ua_1".into(),
-                touched_at: now - Duration::hours(10),
+                touched_at: now - TimeDelta::hours(10),
                 click_payload: None,
             },
             Touchpoint {
@@ -296,7 +296,7 @@ mod tests {
                 kol_id: 11,
                 ip_hash: "ip_1".into(),
                 ua_hash: "ua_1".into(),
-                touched_at: now - Duration::hours(5),
+                touched_at: now - TimeDelta::hours(5),
                 click_payload: None,
             },
             Touchpoint {
@@ -306,7 +306,7 @@ mod tests {
                 kol_id: 12,
                 ip_hash: "ip_1".into(),
                 ua_hash: "ua_1".into(),
-                touched_at: now - Duration::hours(1),
+                touched_at: now - TimeDelta::hours(1),
                 click_payload: None,
             },
         ];

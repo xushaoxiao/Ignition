@@ -10,23 +10,23 @@
 //! ignition keygen                  Generate a new master key
 //! ```
 
-mod analytics;
-mod attribution;
-mod auth;
-mod billing;
-mod config;
-mod db;
-mod entitlement;
-mod game;
-mod hmacsig;
-mod jobs;
-mod ledger;
-mod models;
-mod payments;
-mod risk;
-mod secrets;
-mod server;
-mod telegram;
+pub mod analytics;
+pub mod attribution;
+pub mod auth;
+pub mod billing;
+pub mod config;
+pub mod db;
+pub mod entitlement;
+pub mod game;
+pub mod hmacsig;
+pub mod jobs;
+pub mod ledger;
+pub mod models;
+pub mod payments;
+pub mod risk;
+pub mod secrets;
+pub mod server;
+pub mod telegram;
 
 use std::net::SocketAddr;
 use std::sync::Arc;

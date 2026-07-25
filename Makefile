@@ -1,5 +1,6 @@
 .PHONY: help up down reset migrate migrate-remote seed secrets keygen build run test lint fmt psql \
-        job-clear job-audit job-settle job-push tma-install tma-dev tma-build tma-typecheck test-all
+        job-clear job-audit job-settle job-push tma-install tma-dev tma-build tma-typecheck \
+        landing-dev landing-build landing-typecheck test-all
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -108,4 +109,13 @@ tma-build: ## Build TMA
 tma-typecheck: ## TMA typecheck
 	$(PNPM) --filter @ignition/tma typecheck
 
-test-all: test tma-typecheck ## API unit tests + TMA typecheck
+landing-dev: ## Start landing (marketing site) dev server
+	$(PNPM) --filter @ignition/landing dev
+
+landing-build: ## Build landing (marketing site)
+	$(PNPM) --filter @ignition/landing build
+
+landing-typecheck: ## Landing typecheck
+	$(PNPM) --filter @ignition/landing typecheck
+
+test-all: test tma-typecheck landing-typecheck ## API unit tests + TMA & landing typecheck

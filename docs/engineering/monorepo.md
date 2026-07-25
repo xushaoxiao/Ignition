@@ -15,6 +15,7 @@ apps/                              ← Cargo + pnpm workspace root
   package.json / pnpm-workspace.yaml / pnpm-lock.yaml
   api/                             Rust HTTP service, jobs, CLI (package: ignition)
   tma/                             Telegram Mini App (@ignition/tma)
+  landing/                         Marketing site, Next.js + HeroUI (@ignition/landing)
   packages/                        Shared JS/TS libs (add when a second consumer exists)
 ```
 

@@ -1,0 +1,47 @@
+/* Import order matters: Tailwind first, then HeroUI styles. */
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* next-themes toggles a `.dark` class on <html>; make Tailwind's dark:
+   variant follow that class instead of the OS media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Align HeroUI's accent (used by the `primary` Button variant and other
+   accented components) with the Ignition brand red-orange, for both themes.
+   These override the defaults shipped by @heroui/styles above. */
+:root,
+[data-theme="light"] {
+  --accent: oklch(0.637 0.196 32);
+  --accent-foreground: oklch(0.99 0 0);
+}
+
+.dark,
+[data-theme="dark"] {
+  --accent: oklch(0.7 0.19 33);
+  --accent-foreground: oklch(0.16 0 0);
+}
+
+/* Tailwind brand utilities (text-brand / bg-brand / border-brand + opacity
+   modifiers) resolve to the same accent, so custom sections and HeroUI
+   components share one brand colour and adapt together in light/dark. */
+@theme {
+  --color-brand: var(--accent);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Subtle grid backdrop used by the hero. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, currentColor 8%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, currentColor 8%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "landing",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps", "--filter", "@ignition/landing", "dev", "-p", "3200"],
+      "port": 3200
+    }
+  ]
+}

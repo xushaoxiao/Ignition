@@ -4,6 +4,9 @@
   "scripts": {
     "dev:tma": "pnpm --filter @ignition/tma dev",
     "build:tma": "pnpm --filter @ignition/tma build",
-    "typecheck:tma": "pnpm --filter @ignition/tma typecheck"
+    "typecheck:tma": "pnpm --filter @ignition/tma typecheck",
+    "dev:landing": "pnpm --filter @ignition/landing dev",
+    "build:landing": "pnpm --filter @ignition/landing build",
+    "typecheck:landing": "pnpm --filter @ignition/landing typecheck"
   }
 }

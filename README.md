@@ -144,12 +144,26 @@ make tma-dev
 
 Telegram only loads HTTPS pages; local device debugging needs a tunnel (cloudflared / ngrok). Without a tunnel, the browser path uses a freshly signed initData from the Vite plugin — see [apps/tma/README.md](apps/tma/README.md).
 
+### Landing (marketing site)
+
+Public product site — Next.js (App Router, SSG) + HeroUI v3 + Tailwind v4, with
+`/zh` and `/en` locales. Content is static and driven by typed dictionaries; no
+API or database needed.
+
+```bash
+make tma-install   # shared workspace install (pnpm --dir apps install)
+make landing-dev   # http://localhost:3000
+make landing-build # production build; both locales prerender to static HTML
+```
+
+See [apps/landing/README.md](apps/landing/README.md).
+
 ### Tests
 
 ```bash
 make test        # cargo test -p ignition via apps/Cargo.toml; no database required
 make lint        # cargo clippy + fmt --check
-make test-all    # API unit tests + TMA typecheck
+make test-all    # API unit tests + TMA & landing typecheck
 ```
 
 ---
@@ -237,6 +251,7 @@ apps/                             Language workspaces (Cargo + pnpm live here)
   package.json / pnpm-workspace.yaml / pnpm-lock.yaml
   api/                            Rust HTTP service / jobs / key tooling
   tma/                            Telegram Mini App
+  landing/                        Marketing site (Next.js + HeroUI, zh/en)
   packages/                       Shared JS/TS libs (second consumer only)
 ```
 

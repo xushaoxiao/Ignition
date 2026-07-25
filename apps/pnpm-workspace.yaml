@@ -1,6 +1,8 @@
 packages:
   - 'tma'
+  - 'landing'
   - 'packages/*'
 
 allowBuilds:
   esbuild: true
+  sharp: true

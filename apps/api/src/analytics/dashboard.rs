@@ -52,6 +52,7 @@ pub struct GrowthAnalyticsService;
 
 impl GrowthAnalyticsService {
     /// Calculate growth metrics summary.
+    #[allow(clippy::too_many_arguments)]
     pub fn summarize_tenant_growth(
         tenant_id: i64,
         period_start: &str,

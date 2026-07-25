@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::{AttributionMethod, Cents};
 
 /// Touchpoint captured from a marketing channel click / impression.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Touchpoint {
     pub id: i64,
@@ -26,6 +27,7 @@ pub struct Touchpoint {
 }
 
 /// Device fingerprint collected during app first launch or web landing.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceFingerprint {
     pub ip_hash: String,
@@ -36,6 +38,7 @@ pub struct DeviceFingerprint {
 }
 
 /// Multi-touch attribution decay model type.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MultiTouchModel {
@@ -50,6 +53,7 @@ pub enum MultiTouchModel {
 }
 
 /// Output of a multi-channel attribution calculation.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiTouchAttributionResult {
     pub touchpoint_id: i64,
@@ -61,6 +65,7 @@ pub struct MultiTouchAttributionResult {
 }
 
 /// Candidate match outcome from non-deterministic matching.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbabilisticMatch {
     pub touchpoint_id: i64,
@@ -88,6 +93,7 @@ impl Default for ProbabilisticMatcher {
 }
 
 impl ProbabilisticMatcher {
+    #[allow(dead_code)]
     pub fn new(max_window: TimeDelta) -> Self {
         Self { max_window }
     }

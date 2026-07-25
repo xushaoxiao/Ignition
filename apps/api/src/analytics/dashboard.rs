@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::Cents;
 
 /// Overview of tenant growth metrics and commercial performance.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantGrowthMetrics {
     pub tenant_id: i64,
@@ -20,6 +21,7 @@ pub struct TenantGrowthMetrics {
 }
 
 /// Performance and settlement status for an individual KOL.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KolPerformanceMetrics {
     pub kol_id: i64,
@@ -32,6 +34,7 @@ pub struct KolPerformanceMetrics {
 }
 
 /// Campaign level ROI and channel performance breakdown.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CampaignMetrics {
     pub campaign_id: i64,
@@ -83,6 +86,7 @@ impl GrowthAnalyticsService {
     }
 
     /// Calculate ROI for a campaign.
+    #[allow(dead_code)]
     pub fn calculate_campaign_roi(
         campaign_id: i64,
         campaign_name: &str,

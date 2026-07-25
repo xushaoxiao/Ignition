@@ -125,7 +125,9 @@ impl ProbabilisticMatcher {
             }
 
             // Recency decay factor (closer to launch = higher score)
-            let recency_factor = 1.0 - (delta.num_seconds() as f64 / self.max_window.num_seconds() as f64).clamp(0.0, 1.0);
+            let recency_factor = 1.0
+                - (delta.num_seconds() as f64 / self.max_window.num_seconds() as f64)
+                    .clamp(0.0, 1.0);
             score += 0.1 * recency_factor;
 
             if score >= 0.5 {
@@ -238,7 +240,10 @@ mod tests {
         };
 
         let res = matcher.match_fingerprint(&fp, &[touch]).unwrap();
-        assert!(!res.is_billable, "Probabilistic match MUST NOT be billable per constraint C1");
+        assert!(
+            !res.is_billable,
+            "Probabilistic match MUST NOT be billable per constraint C1"
+        );
         assert_eq!(res.method, AttributionMethod::Probabilistic);
         assert_eq!(res.confidence, 30);
         assert_eq!(res.kol_id, 42);
@@ -273,7 +278,8 @@ mod tests {
             },
         ];
 
-        let results = matcher.calculate_multi_touch(&touches, Cents(10000), MultiTouchModel::Linear);
+        let results =
+            matcher.calculate_multi_touch(&touches, Cents(10000), MultiTouchModel::Linear);
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].allocated_cents, Cents(5000));
         assert_eq!(results[1].allocated_cents, Cents(5000));
@@ -317,7 +323,11 @@ mod tests {
             },
         ];
 
-        let results = matcher.calculate_multi_touch(&touches, Cents(10000), MultiTouchModel::PositionBased);
+        let results = matcher.calculate_multi_touch(
+            &touches,
+            Cents(10000),
+            MultiTouchModel::PositionBased,
+        );
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].allocated_cents, Cents(4000)); // 40% First
         assert_eq!(results[1].allocated_cents, Cents(2000)); // 20% Middle

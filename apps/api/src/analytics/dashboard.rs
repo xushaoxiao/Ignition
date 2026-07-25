@@ -1,7 +1,7 @@
 //! Tenant and KOL growth analytics & settlement dashboard reporting logic.
 
-use serde::{Deserialize, Serialize};
 use crate::models::Cents;
+use serde::{Deserialize, Serialize};
 
 /// Overview of tenant growth metrics and commercial performance.
 #[allow(dead_code)]

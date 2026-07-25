@@ -3,5 +3,5 @@
 pub mod dashboard;
 
 pub use dashboard::{
-    CampaignMetrics, KolPerformanceMetrics, TenantGrowthMetrics, GrowthAnalyticsService,
+    CampaignMetrics, GrowthAnalyticsService, KolPerformanceMetrics, TenantGrowthMetrics,
 };

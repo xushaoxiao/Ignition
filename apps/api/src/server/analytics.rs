@@ -9,7 +9,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use serde_json::json;
 
-use super::{ApiError, AppState};
+use super::AppState;
 use crate::analytics::{GrowthAnalyticsService, TenantGrowthMetrics};
 use crate::auth::Scope;
 use crate::models::Cents;

@@ -323,11 +323,8 @@ mod tests {
             },
         ];
 
-        let results = matcher.calculate_multi_touch(
-            &touches,
-            Cents(10000),
-            MultiTouchModel::PositionBased,
-        );
+        let results =
+            matcher.calculate_multi_touch(&touches, Cents(10000), MultiTouchModel::PositionBased);
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].allocated_cents, Cents(4000)); // 40% First
         assert_eq!(results[1].allocated_cents, Cents(2000)); // 20% Middle

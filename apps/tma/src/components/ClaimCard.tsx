@@ -12,6 +12,7 @@
  */
 import { useState } from 'react'
 import type { ClaimResult } from '../api'
+import { shareInvite } from '../telegram'
 
 interface Props {
   claim: ClaimResult
@@ -29,9 +30,12 @@ export function ClaimCard({ claim, prizeLabel }: Props) {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Clipboard unavailable in some WebViews. The code is visible; users can transcribe —
-      // no scary error toast.
+      // Clipboard unavailable in some WebViews.
     }
+  }
+
+  function handleShare() {
+    shareInvite(`🎁 我刚刚抽中了 ${prizeLabel}！快来幸运转盘一起抽取大奖，我的兑换码是：${claim.claim_code}`)
   }
 
   return (
@@ -43,17 +47,23 @@ export function ClaimCard({ claim, prizeLabel }: Props) {
 
       <div className="rounded-2xl bg-white/10 p-5 ring-1 ring-white/15">
         <p className="text-xs text-white/60">你的兑换码</p>
-        {/* tracking-widest + monospace: adjacent chars are the hardest to misread in 8-char codes;
-            charset already excludes 0/O/1/I/L; extra letter-spacing helps. */}
         <p className="mt-2 select-all font-mono text-3xl font-bold tracking-[0.35em] text-white">
           {claim.claim_code}
         </p>
-        <button
-          onClick={copy}
-          className="mt-4 w-full rounded-xl bg-white/15 py-2.5 text-sm font-medium text-white active:bg-white/25"
-        >
-          {copied ? '已复制 ✓' : '复制兑换码'}
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={copy}
+            className="flex-1 rounded-xl bg-white/15 py-2.5 text-sm font-medium text-white active:bg-white/25"
+          >
+            {copied ? '已复制 ✓' : '复制兑换码'}
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex-1 rounded-xl bg-emerald-500/80 py-2.5 text-sm font-medium text-white active:bg-emerald-600"
+          >
+            分享欧气 🚀
+          </button>
+        </div>
         <p className="mt-3 text-xs text-white/50">
           有效期至 {formatExpiry(claim.expires_at)}，过期需重新抽奖
         </p>

@@ -83,6 +83,22 @@ export function tapFeedback(): void {
   }
 }
 
+/** Share viral invitation link or prize claim in Telegram chat/groups. */
+export function shareInvite(text: string, url?: string): void {
+  const targetUrl = url ?? window.location.href
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(text)}`
+  try {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram
+    if (inTelegram() && tg?.WebApp?.openTelegramLink) {
+      tg.WebApp.openTelegramLink(shareUrl)
+    } else {
+      window.open(shareUrl, '_blank')
+    }
+  } catch {
+    window.open(shareUrl, '_blank')
+  }
+}
+
 /** Success haptic on win. */
 export function successFeedback(): void {
   try {

@@ -16,6 +16,7 @@
 //! after initData verification — fully separate from S2S credentials; the frontend
 //! cannot hold long-lived secrets.
 
+mod analytics;
 mod attribution_query;
 mod guard;
 mod postback;
@@ -65,6 +66,7 @@ pub fn router(state: Arc<AppState>, cors_origins: &[String]) -> Router {
             "/v1/attribution/{app_user_id}",
             get(attribution_query::handle),
         )
+        .route("/v1/analytics/dashboard", get(analytics::handle))
         // TMA: initData → JWT
         .route("/v1/tma/session", post(tma::session))
         .route("/v1/tma/session/refresh", post(tma::refresh))

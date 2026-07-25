@@ -22,7 +22,7 @@ import {
 } from './api'
 import { ClaimCard } from './components/ClaimCard'
 import { Wheel } from './components/Wheel'
-import { inTelegram, rawInitData, setupTelegram, successFeedback, tapFeedback } from './telegram'
+import { inTelegram, rawInitData, setupTelegram, shareInvite, successFeedback, tapFeedback } from './telegram'
 
 type Phase = 'booting' | 'ready' | 'spinning' | 'claiming' | 'done' | 'fatal'
 
@@ -144,13 +144,22 @@ export default function App() {
           )}
 
           {phase !== 'claiming' && (
-            <button
-              onClick={spin}
-              disabled={phase === 'spinning' || playsLeft <= 0}
-              className="rounded-2xl bg-amber-400 py-4 text-lg font-bold text-slate-900 disabled:bg-white/15 disabled:text-white/40 active:bg-amber-500"
-            >
-              {playsLeft <= 0 ? '今日次数已用完' : phase === 'spinning' ? '转动中…' : '开始抽奖'}
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button
+                onClick={spin}
+                disabled={phase === 'spinning' || playsLeft <= 0}
+                className="w-full rounded-2xl bg-amber-400 py-4 text-lg font-bold text-slate-900 disabled:bg-white/15 disabled:text-white/40 active:bg-amber-500"
+              >
+                {playsLeft <= 0 ? '今日次数已用完' : phase === 'spinning' ? '转动中…' : '开始抽奖'}
+              </button>
+              <button
+                onClick={() => shareInvite('🎯 发现了一个超级好玩的 Telegram 幸运抽奖！邀请组团抽大奖：')}
+                disabled={phase === 'spinning'}
+                className="w-full rounded-2xl bg-white/10 py-3 text-sm font-semibold text-white/90 ring-1 ring-white/15 active:bg-white/20"
+              >
+                🤝 邀请好友组团 (+1 抽奖机会)
+              </button>
+            </div>
           )}
         </>
       )}

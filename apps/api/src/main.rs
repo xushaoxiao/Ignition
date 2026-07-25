@@ -10,6 +10,7 @@
 //! ignition keygen                  Generate a new master key
 //! ```
 
+mod analytics;
 mod attribution;
 mod auth;
 mod billing;

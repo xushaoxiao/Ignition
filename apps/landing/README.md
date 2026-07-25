@@ -43,6 +43,22 @@ i18n/
   dictionaries/zh.ts   Chinese copy — typed `typeof en`, so the two stay in sync
 ```
 
+## Deploy (Vercel)
+
+The pnpm workspace root is `apps/`, so Vercel needs the app as its root:
+
+1. **vercel.com → Add New → Project**, import `xushaoxiao/Ignition`.
+2. **Root Directory** → `apps/landing` (Edit → select the folder). Keep
+   **"Include files outside of the root directory"** enabled so the workspace
+   `pnpm-lock.yaml` is visible.
+3. Framework (**Next.js**), install (`pnpm install --frozen-lockfile`) and build
+   (`next build`) are picked up from [vercel.json](./vercel.json) / auto-detect —
+   no manual overrides needed.
+4. Deploy. Every push to `main` then ships automatically.
+
+`/` redirects to a locale by `Accept-Language` (see [proxy.ts](./proxy.ts)); set a
+real domain and update `metadataBase` in `app/[locale]/layout.tsx`.
+
 ## Conventions
 
 - **Copy lives in dictionaries only.** Add a key to `en.ts`; TypeScript then

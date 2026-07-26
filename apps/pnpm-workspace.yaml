@@ -1,6 +1,7 @@
 packages:
   - 'tma'
   - 'landing'
+  - 'console'
   - 'packages/*'
 
 allowBuilds:

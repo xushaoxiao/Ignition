@@ -16,7 +16,8 @@ apps/                              ← Cargo + pnpm workspace root
   api/                             Rust HTTP service, jobs, CLI (package: ignition)
   tma/                             Telegram Mini App (@ignition/tma)
   landing/                         Marketing site, Next.js + HeroUI (@ignition/landing)
-  packages/                        Shared JS/TS libs (add when a second consumer exists)
+  console/                         Campaign builder, Next.js + HeroUI (@ignition/console)
+  packages/games/                  Shared game skins (@ignition/games) — TMA + console
 ```
 
 ## Why manifests live under `apps/`

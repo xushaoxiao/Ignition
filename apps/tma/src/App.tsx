@@ -21,8 +21,12 @@ import {
   type Session,
 } from './api'
 import { ClaimCard } from './components/ClaimCard'
-import { Wheel } from './components/Wheel'
+import { gameFor } from '@ignition/games'
 import { inTelegram, rawInitData, setupTelegram, shareInvite, successFeedback, tapFeedback } from './telegram'
+
+// Cosmetic override to preview a specific game skin (?game=slot_machine). The outcome always
+// comes from the server; this only swaps the animation, so it is harmless outside previews.
+const GAME_OVERRIDE = new URLSearchParams(window.location.search).get('game')
 
 type Phase = 'booting' | 'ready' | 'spinning' | 'claiming' | 'done' | 'fatal'
 
@@ -106,11 +110,13 @@ export default function App() {
   }
 
   const segments = session?.prizes ?? []
+  const game = gameFor(GAME_OVERRIDE ?? session?.game)
+  const Game = game.Component
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-7 px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))]">
       <header className="text-center">
-        <h1 className="text-xl font-bold">幸运转盘</h1>
+        <h1 className="text-xl font-bold">{game.title}</h1>
         {phase !== 'fatal' && phase !== 'booting' && (
           <p className="mt-1 text-sm text-white/60">今日还可抽 {playsLeft} 次</p>
         )}
@@ -126,7 +132,7 @@ export default function App() {
 
       {(phase === 'ready' || phase === 'spinning' || phase === 'claiming') && (
         <>
-          <Wheel
+          <Game
             segments={segments}
             target={result?.segment_index ?? null}
             spinning={phase === 'spinning' && result !== null}
@@ -150,7 +156,7 @@ export default function App() {
                 disabled={phase === 'spinning' || playsLeft <= 0}
                 className="w-full rounded-2xl bg-amber-400 py-4 text-lg font-bold text-slate-900 disabled:bg-white/15 disabled:text-white/40 active:bg-amber-500"
               >
-                {playsLeft <= 0 ? '今日次数已用完' : phase === 'spinning' ? '转动中…' : '开始抽奖'}
+                {playsLeft <= 0 ? '今日次数已用完' : phase === 'spinning' ? '抽奖中…' : '开始抽奖'}
               </button>
               <button
                 onClick={() => shareInvite('🎯 发现了一个超级好玩的 Telegram 幸运抽奖！邀请组团抽大奖：')}

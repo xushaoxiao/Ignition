@@ -158,6 +158,21 @@ make landing-build # production build; both locales prerender to static HTML
 
 See [apps/landing/README.md](apps/landing/README.md).
 
+### Console (campaign builder)
+
+Self-serve tool for a customer's marketing team: configure a game (wheel / scratch /
+slot / blind box / flip), edit the prize pool, preview it live, and generate a
+distribution link + QR. Next.js + HeroUI; currently a **frontend-first** build wired to
+an in-browser mock API (the tenant-admin auth + config endpoints are the next backend
+step). Reuses the game skins from `@ignition/games`.
+
+```bash
+make tma-install     # shared workspace install
+make console-dev     # http://localhost:3000
+```
+
+See [apps/console/README.md](apps/console/README.md).
+
 ### Tests
 
 ```bash
@@ -252,7 +267,8 @@ apps/                             Language workspaces (Cargo + pnpm live here)
   api/                            Rust HTTP service / jobs / key tooling
   tma/                            Telegram Mini App
   landing/                        Marketing site (Next.js + HeroUI, zh/en)
-  packages/                       Shared JS/TS libs (second consumer only)
+  console/                        Marketing campaign builder (Next.js + HeroUI)
+  packages/games/                 Shared game skins (@ignition/games)
 ```
 
 Cargo and pnpm manifests sit under `apps/`, not the repository root. Use `make …`

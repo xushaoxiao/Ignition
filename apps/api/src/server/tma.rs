@@ -47,15 +47,19 @@ pub struct SessionResponse {
     pub campaign_id: i64,
     pub kol_id: i64,
     pub plays_left: i64,
-    /// Wheel segments; **order defines valid `segment_index` values**.
+    /// Game the campaign runs — the `template.code` (e.g. `lucky_wheel`, `slot_machine`).
+    /// The TMA maps this to an animation skin; the outcome is game-agnostic (a won prize
+    /// index), so which game is chosen never touches the draw, billing, or attribution.
+    pub game: String,
+    /// Prize pool; **order defines valid `segment_index` values**.
     pub prizes: Vec<Segment>,
 }
 
-/// One wheel segment.
+/// One prize slot.
 ///
 /// Exposes id and label only — **not weight or stock**. Leaking weight reveals win odds;
-/// leaking stock is worse — users can see a limited prize is gone before spinning, making
-/// the spin pointless and stopping them before claim-code issuance.
+/// leaking stock is worse — users can see a limited prize is gone before playing, making
+/// the play pointless and stopping them before claim-code issuance.
 #[derive(Debug, Serialize)]
 pub struct Segment {
     pub id: i64,
@@ -177,6 +181,14 @@ pub async fn session(
         }
     };
 
+    let game = match load_game_code(&state, tenant_id, campaign_id).await {
+        Ok(g) => g,
+        Err(e) => {
+            tracing::error!(tenant_id, error = %e, "failed to load campaign game type");
+            return ApiError::internal().into_response();
+        }
+    };
+
     match upsert_player(&state, tenant_id, campaign_id, &init, now).await {
         Ok((player_id, plays_left)) => {
             let session = state.issuer.issue(
@@ -194,6 +206,7 @@ pub async fn session(
                 campaign_id,
                 kol_id,
                 plays_left,
+                game,
                 prizes,
             })
             .into_response()
@@ -230,6 +243,25 @@ async fn load_segments(
             })
         })
         .collect()
+}
+
+/// Resolve the campaign's game (template code). Read under tenant context because `campaign` is
+/// RLS-scoped; `template` is a global catalog joined on top. The frontend maps the code to an
+/// animation — an unknown code simply falls back to the wheel, so this never fails a session.
+async fn load_game_code(
+    state: &Arc<AppState>,
+    tenant_id: i64,
+    campaign_id: i64,
+) -> Result<String, sqlx::Error> {
+    let mut tx = db::begin_tenant_tx(&state.pool, tenant_id).await?;
+    let row = sqlx::query(
+        "SELECT t.code FROM campaign c JOIN template t ON t.id = c.template_id WHERE c.id = $1",
+    )
+    .bind(campaign_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    row.try_get("code")
 }
 
 async fn upsert_player(

@@ -1,6 +1,6 @@
 .PHONY: help up down reset migrate migrate-remote seed secrets keygen build run test lint fmt psql \
         job-clear job-audit job-settle job-push tma-install tma-dev tma-build tma-typecheck \
-        landing-dev landing-build landing-typecheck test-all
+        landing-dev landing-build landing-typecheck console-dev console-build console-typecheck test-all
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -36,6 +36,7 @@ migrate: ## Run migrations (as admin)
 	$(PSQL) < db/migrations/0001_init.sql
 	$(PSQL) < db/migrations/0002_auth_game_postback.sql
 	$(PSQL) < db/migrations/0003_invoice_payment_push.sql
+	$(PSQL) < db/migrations/0004_game_templates.sql
 	@# Migration creates ignition_app as NOLOGIN (runs on internet-reachable hosted DBs;
 	@# cannot seed default passwords). Local docker is not exposed; enable login here for dev.
 	@# In production, run this separately with a random password.
@@ -46,6 +47,7 @@ migrate-remote: ## Run migrations on remote DB (reads IGNITION_PG_DSN; does not 
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0001_init.sql
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0002_auth_game_postback.sql
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0003_invoice_payment_push.sql
+	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0004_game_templates.sql
 
 seed: ## Load demo data (tenant / KOL / campaign / prize pool / link)
 	$(PSQL) < db/seed.sql
@@ -118,4 +120,13 @@ landing-build: ## Build landing (marketing site)
 landing-typecheck: ## Landing typecheck
 	$(PNPM) --filter @ignition/landing typecheck
 
-test-all: test tma-typecheck landing-typecheck ## API unit tests + TMA & landing typecheck
+console-dev: ## Start console (marketing campaign builder) dev server
+	$(PNPM) --filter @ignition/console dev
+
+console-build: ## Build console
+	$(PNPM) --filter @ignition/console build
+
+console-typecheck: ## Console typecheck
+	$(PNPM) --filter @ignition/console typecheck
+
+test-all: test tma-typecheck landing-typecheck console-typecheck ## API unit tests + web typechecks

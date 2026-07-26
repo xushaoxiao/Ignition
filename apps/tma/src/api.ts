@@ -25,7 +25,9 @@ export interface Session {
   campaign_id: number
   kol_id: number
   plays_left: number
-  /** Wheel segments; order matches `segment_index` values from the server. */
+  /** Game to render — the campaign's `template.code` (e.g. `lucky_wheel`, `slot_machine`). */
+  game: string
+  /** Prize pool; order matches `segment_index` values from the server. */
   prizes: Segment[]
 }
 

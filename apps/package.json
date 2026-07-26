@@ -7,6 +7,9 @@
     "typecheck:tma": "pnpm --filter @ignition/tma typecheck",
     "dev:landing": "pnpm --filter @ignition/landing dev",
     "build:landing": "pnpm --filter @ignition/landing build",
-    "typecheck:landing": "pnpm --filter @ignition/landing typecheck"
+    "typecheck:landing": "pnpm --filter @ignition/landing typecheck",
+    "dev:console": "pnpm --filter @ignition/console dev",
+    "build:console": "pnpm --filter @ignition/console build",
+    "typecheck:console": "pnpm --filter @ignition/console typecheck"
   }
 }

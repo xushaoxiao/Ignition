@@ -1,0 +1,21 @@
+{
+  "name": "@ignition/games",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ignition game skins — animation over a server-decided outcome. Shared by the TMA and the console.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/games.css"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

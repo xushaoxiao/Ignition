@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Game skins live in @ignition/games; let Tailwind scan them for utility classes. */
+@source '../../packages/games/src/**/*.{ts,tsx}';
+
 /* Dark base + warm primary button. Deliberately ignore Telegram themeParams:
    the wheel should feel like an event floor, not a settings page painted in chat colours.
    When whitelabel (branding.whitelabel) lands, read the palette from campaign.config. */

@@ -1,6 +1,9 @@
 # Ignition TMA
 
-Telegram Mini App wheel frontend. React + Vite + Tailwind. Package name `@ignition/tma`.
+Telegram Mini App game frontend. React + Vite + Tailwind. Package name `@ignition/tma`.
+
+Ships five game skins — wheel, scratch card, slot machine, blind box, flip cards — all
+over the **same** server-authoritative outcome. See [Games](#games) below.
 
 This layer is the first instance of the `ChannelAdapter` extension point — use it to
 validate whether the abstraction holds, rather than writing the abstraction first and
@@ -22,6 +25,30 @@ The signature is computed over the raw field sequence. If the frontend parses an
 re-serialises, even a slight mismatch in key order or escaping makes server-side
 verification fail — showing up as “some users cannot open the app”, which is extremely
 hard to debug.
+
+## Games
+
+A "game" is only an **animation skin over a server-decided outcome**. `POST /v1/tma/play`
+returns a winning prize index (`segment_index`); every skin animates toward that index and
+then calls `onSettled`. No skin ever picks the winner — that is the first rule above.
+
+- **Contract** — [`components/games/types.ts`](src/components/games/types.ts): every game is a
+  component taking `{ segments, target, spinning, onSettled }`.
+- **Registry** — [`components/games/index.ts`](src/components/games/index.ts): maps the campaign's
+  `template.code` (from the session's `game` field) to a component. Unknown codes fall back to the
+  wheel, so a new backend template never breaks an older client.
+- **Skins** — `Wheel`, `ScratchCard`, `SlotMachine`, `BlindBox`, `FlipCards`. The reveal-style
+  ones share [`useReveal`](src/components/games/useReveal.ts) for the `idle → playing → revealed`
+  lifecycle.
+
+**Add a game**: add a `template` row (see `db/migrations/0004_game_templates.sql`), write a
+component that implements `GameProps`, and register it by code in `games/index.ts`. Nothing in
+the play flow, billing, or attribution changes.
+
+**Preview without a backend**: `pnpm dev`, then open [`/?preview`](http://localhost:5173/?preview)
+for a gallery that renders every game with mock prizes and a play button. To preview one skin
+against a real campaign, append `?game=<code>` (cosmetic only — the outcome still comes from the
+server).
 
 ## The claim-code screen deserves repeated polish
 

@@ -1,0 +1,32 @@
+/* Import order matters: Tailwind first, then HeroUI styles. */
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* Game skins live in @ignition/games (outside this app's dir); scan them for utility classes. */
+@source "../../packages/games/src/**/*.{ts,tsx}";
+
+/* next-themes toggles a `.dark` class on <html>; make Tailwind's dark: variant follow it. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Ignition brand accent — shared across all Ignition surfaces (landing, console). */
+:root,
+[data-theme="light"] {
+  --accent: oklch(0.637 0.196 32);
+  --accent-foreground: oklch(0.99 0 0);
+}
+.dark,
+[data-theme="dark"] {
+  --accent: oklch(0.7 0.19 33);
+  --accent-foreground: oklch(0.16 0 0);
+}
+
+@theme {
+  --color-brand: var(--accent);
+}
+
+/* The game preview stage is always dark: the skins assume a dark event-floor backdrop
+   (light text on colour), matching how they render inside Telegram. */
+.preview-stage {
+  background: radial-gradient(120% 90% at 50% 0%, #2b1d5e 0%, #0f0d1c 60%, #0b0a14 100%);
+  color: #f5f5f7;
+}

@@ -1,7 +1,7 @@
 http:
   # Must be a full socket address; do not omit the host part
   addr: "0.0.0.0:18080"
-  cors_origins: ["http://localhost:5173"]
+  cors_origins: ["http://localhost:5173", "http://localhost:5273"]
 
 postgres:
   # App connects as ignition_app (not table owner) so RLS policies apply.

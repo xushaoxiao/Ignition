@@ -2,8 +2,14 @@
 
 Telegram Mini App game frontend. React + Vite + Tailwind. Package name `@ignition/tma`.
 
-Ships five game skins — wheel, scratch card, slot machine, blind box, flip cards — all
-over the **same** server-authoritative outcome. See [Games](#games) below.
+Ships two game shapes:
+
+- five **prize-draw skins** — wheel, scratch card, slot machine, blind box, flip cards — all
+  over the **same** server-authoritative outcome. See [Games](#games) below.
+- one **daily decision game** — `daily_budget`, 每日理财决策. See
+  [Daily budget game](#daily-budget-game).
+
+`App.tsx` picks between them from the session's `game` field; both end at the same claim code.
 
 This layer is the first instance of the `ChannelAdapter` extension point — use it to
 validate whether the abstraction holds, rather than writing the abstraction first and
@@ -48,7 +54,39 @@ the play flow, billing, or attribution changes.
 **Preview without a backend**: `pnpm dev`, then open [`/?preview`](http://localhost:5173/?preview)
 for a gallery that renders every game with mock prizes and a play button. To preview one skin
 against a real campaign, append `?game=<code>` (cosmetic only — the outcome still comes from the
-server).
+server; `?game=daily_budget` switches to the decision game against whatever campaign the session
+opened).
+
+## Daily budget game
+
+`daily_budget` is **not** a skin, and deliberately does not implement `GameProps`: the player
+makes a scored decision, so there is no prize index to animate toward. Forcing it into that
+contract would hand every wheel-style skin props it does not use.
+
+```text
+今日场景 → 选择 → 评分 + 科普 → 排行榜 → 抽奖 → 兑换码
+```
+
+- [`daily/DailyApp.tsx`](src/daily/DailyApp.tsx) — the flow. Screens live beside it
+  (`CreditMeter`, `ScenarioCard`, `OutcomeCard`, `Leaderboard`).
+- [`PrizeFlow.tsx`](src/PrizeFlow.tsx) — the prize-draw half, shared with wheel-style campaigns.
+  The daily game hands off to it with an explicit reward skin (`blind_box`).
+- Endpoints: `GET /v1/tma/daily`, `POST /v1/tma/daily/answer`, `GET /v1/tma/daily/leaderboard`.
+
+Three rules for this game, in addition to the two above:
+
+1. **Scores never reach the client before the answer.** The server sends `key + label` only —
+   same rule as the prize pool, which never sends weight or stock. A client that can read the
+   score table turns the game into a lookup exercise and the leaderboard into copy-paste.
+2. **The handoff to the draw is a UI sequence, not an entitlement.** Answering does not grant a
+   play; `daily_play_limit` still decides how many draws a player gets. A score the player can
+   influence must never unlock prize spend — see constraint C1 in the root README.
+3. **The disclaimer under the tip stays.** Every tip is generic financial literacy, not advice
+   about anyone's situation, and the soft promo above the score threshold is the customer's own
+   claim from `campaign.config.promo` — never the game's voice.
+
+To run it locally, point `DEV_TRACKING_ID` at a link whose campaign uses the template — the demo
+seed ships one (`dQ7wN2pR5t`, campaign 2).
 
 ## The claim-code screen deserves repeated polish
 

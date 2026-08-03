@@ -56,6 +56,7 @@ The revenue path runs end to end: **TMA open → play → claim code → redeem 
 | **Attribution query API** | `apps/api/src/attribution/query.rs` | `GET /v1/attribution/{app_user_id}`; display-only projection, never exposes `evidence` |
 | **Envelope encryption (KMS-ready)** | `apps/api/src/secrets.rs` | V1/V2 version dispatch; V2 wraps a per-secret DEK via a `KeyProvider`; local provider ships, V1 blobs stay readable |
 | **TMA frontend** | `apps/tma/` | React + Vite + Tailwind; wheel via CSS transform |
+| **Daily budget game** | `apps/api/src/daily/` + `apps/tma/src/daily/` | Scored daily decision + streak + leaderboard; engagement only, never billable |
 
 ### Not yet shipped (priority order)
 
@@ -144,6 +145,8 @@ make tma-dev
 
 Telegram only loads HTTPS pages; local device debugging needs a tunnel (cloudflared / ngrok). Without a tunnel, the browser path uses a freshly signed initData from the Vite plugin — see [apps/tma/README.md](apps/tma/README.md).
 
+The demo seed ships two campaigns: `DEV_TRACKING_ID=aB3xY9zK1m` opens the wheel, `dQ7wN2pR5t` opens the daily budget-decision game.
+
 ### Landing (marketing site)
 
 Public product site — Next.js (App Router, SSG) + HeroUI v3 + Tailwind v4, with
@@ -161,7 +164,7 @@ See [apps/landing/README.md](apps/landing/README.md).
 ### Console (campaign builder)
 
 Self-serve tool for a customer's marketing team: configure a game (wheel / scratch /
-slot / blind box / flip), edit the prize pool, preview it live, and generate a
+slot / blind box / flip / daily budget), edit the prize pool, preview it live, and generate a
 distribution link + QR. Next.js + HeroUI; currently a **frontend-first** build wired to
 an in-browser mock API (the tenant-admin auth + config endpoints are the next backend
 step). Reuses the game skins from `@ignition/games`.
@@ -238,6 +241,18 @@ The only hard deny is device-dimension farming — a real user almost never bind
 ### Over-cap does not stop service
 
 Over-cap conversions still attribute and still credit the KOL; they are simply not billed, marked “over cap (free)” on dashboards. Better UX than “stop after cap”, and a natural upsell narrative.
+
+### The daily decision game earns retention, not billing
+
+`daily_budget` (每日理财决策) is the first game that is not an animation over a draw: the player
+makes a scored choice, gets immediate feedback plus a short explanation, and accumulates a virtual
+credit score, a check-in streak, and a leaderboard place. That is a retention loop, and it is
+wired to touch nothing else — answering does not grant a play, and `daily_play_limit` is still the
+only source of draws.
+
+The temptation is obvious ("give a bonus spin for a 7-day streak") and it is exactly what C1
+forbids: a score the player influences would start moving prize cost and, one step later, an
+invoice. Design detail in `docs/design/system-design.md` §6.1.
 
 ### Claim-code alphabet excludes 0/O/1/I/L
 

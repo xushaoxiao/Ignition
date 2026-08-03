@@ -18,6 +18,7 @@
 
 mod analytics;
 mod attribution_query;
+mod daily;
 mod guard;
 mod postback;
 mod redeem;
@@ -49,6 +50,9 @@ pub struct AppState {
     pub issue: attribution::issue::Service,
     pub postback: attribution::postback::Service,
     pub game: game::play::Service,
+    /// Daily budget-decision game. Engagement only — it never produces a billable event.
+    /// Absolute path: `daily` in this module is the handler module below.
+    pub daily: crate::daily::round::Service,
 }
 
 /// Assemble routes.
@@ -72,6 +76,10 @@ pub fn router(state: Arc<AppState>, cors_origins: &[String]) -> Router {
         .route("/v1/tma/session/refresh", post(tma::refresh))
         .route("/v1/tma/play", post(tma::play))
         .route("/v1/tma/claim", post(tma::claim))
+        // Daily budget-decision game (campaigns on the `daily_budget` template)
+        .route("/v1/tma/daily", get(daily::today))
+        .route("/v1/tma/daily/answer", post(daily::answer))
+        .route("/v1/tma/daily/leaderboard", get(daily::leaderboard))
         .with_state(state);
 
     match cors {

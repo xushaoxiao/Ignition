@@ -75,8 +75,26 @@ INSERT INTO reward_item (id, tenant_id, campaign_id, label, weight, remaining) V
   (3, 1, 1, '限定皮肤',  5, 100)
   ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO link (id, tenant_id, campaign_id, channel_id, kol_id, tracking_id)
-VALUES (1, 1, 1, 1, 1, 'aB3xY9zK1m') ON CONFLICT (id) DO NOTHING;
+-- Second demo campaign: the daily budget-decision game (template 6, see migration 0005).
+-- Same prize/claim/redeem path as the wheel — the decision round only sits in front of it.
+-- `promo` is the soft prompt shown to high scorers; it lives in campaign config, never in the
+-- scenario catalog, so the customer owns that claim and the game's own copy stays neutral.
+INSERT INTO campaign (id, tenant_id, app_id, template_id, name, config, status, starts_at)
+VALUES (2, 1, 1, 6, 'Demo Daily Budget',
+        '{"promo": {"text": "想了解真实的借款与理财工具？关注官方频道", "url": "https://t.me/demo_official", "min_credit": 700}}',
+        'active', now() - interval '1 day')
+  ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO reward_item (id, tenant_id, campaign_id, label, weight, remaining) VALUES
+  (4, 1, 2, '记账本周边', 60, 100000),
+  (5, 1, 2, '理财课程券', 35, 5000),
+  (6, 1, 2, '年度会员',   5, 100)
+  ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO link (id, tenant_id, campaign_id, channel_id, kol_id, tracking_id) VALUES
+  (1, 1, 1, 1, 1, 'aB3xY9zK1m'),
+  (2, 1, 2, 1, 1, 'dQ7wN2pR5t')
+  ON CONFLICT (id) DO NOTHING;
 
 -- One user who finished the game and awaits redemption.
 -- first_seen 2 minutes ago to avoid triggering the too_fast risk rule.

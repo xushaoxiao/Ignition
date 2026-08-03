@@ -494,6 +494,25 @@ CREATE TABLE pricing_config (
 - **频次控制**：每 Player 每 Campaign 每日次数，用 Redis 计数 + Postgres 兜底（Redis 挂了要 fail-closed 拒绝抽奖，不是 fail-open 放行）。
 - **模板配置用 JSONB + schema 校验**：`template.config_schema` 存 JSON Schema，`campaign.config` 存实例，保存时校验。这样新增模板不需要改表结构，服务于上层的「专属模板」增值。
 
+### 6.1 两种玩法形态
+
+前五个模板（转盘 / 刮刮卡 / 老虎机 / 盲盒 / 翻牌）都是**同一次服务端抽奖的动画皮肤**，
+换模板不触碰抽奖、计费、归因任何一行代码。`daily_budget`（每日理财决策）是第二种形态：
+
+- 玩家做一次**有评分的选择**，服务端给分、给即时反馈和科普，跨天累积「理财分」、
+  连续打卡与排行榜。选项的分值只存在服务端（`daily_scenario.options`），下发给客户端的
+  投影只有 `key + label` —— 与奖池只下发 `id + label`、不下发权重和库存是同一条规则。
+- **场景库是平台参考数据**（`daily_scenario`，随 schema 维护），不是租户数据：同一天同一
+  campaign 内所有玩家拿到同一道题，排行榜才有可比性；轮换由 `(日期 + campaign_id) % 场景数`
+  决定，是纯函数，不是随机。
+- **一天一轮由数据库保证**：`daily_round` 上 `(tenant_id, player_id, campaign_id, play_date)`
+  唯一索引，重复提交是幂等重放而不是报错。
+- **它是留存层，不是计费输入**：答题不发放抽奖次数，`daily_play_limit` 仍是抽奖次数的唯一
+  来源；决策 → 抽奖只是界面上的先后顺序。玩家能影响的分数一旦能解锁额外抽奖，就等于让
+  互动层去动奖池成本和账单 —— 这正是 C1 禁止的。
+- 高分玩家可见的软引导文案来自 `campaign.config.promo`（客户自己的话术），不写进场景库
+  （游戏自己的口径保持中立）。
+
 ---
 
 ## 7. 风控
@@ -656,7 +675,13 @@ POST /v1/tma/session            initData → 短期 JWT（access 15min / refresh
 POST /v1/tma/session/refresh
 POST /v1/tma/play               抽奖（结果服务端生成，需幂等键）
 POST /v1/tma/claim              为一次抽奖签发领奖码
+
+GET  /v1/tma/daily              每日理财决策：今日场景 + 我的分数（daily_budget 模板）
+POST /v1/tma/daily/answer       提交今日选择（一天一轮，重复提交幂等重放）
+GET  /v1/tma/daily/leaderboard  排行榜
 ```
+
+`daily/answer` 不需要幂等键：**日期本身就是幂等键**（见 §6.1），这也是它与 `play` 的唯一差别。
 
 **S2S 与回传统一用一套 API Key。** 原设计里回传单独用 `app.postback_secret`，
 实现时合并成了 `api_key` + `scopes`：两套密钥意味着两套轮换流程和两个可能过期

@@ -21,7 +21,9 @@ the real backend:
 
 1. **活动基础** — name, daily play limit (risk L1), optional start/end.
 2. **选择玩法** — pick a game; the [`GamePreview`](components/GamePreview.tsx) renders the **real**
-   skin from [`@ignition/games`](../packages/games) with the configured prizes.
+   skin from [`@ignition/games`](../packages/games) with the configured prizes. `daily_budget`
+   (每日理财决策) is listed too, previewed as a static decision card above its reward draw — it is
+   a scored decision game, not an animation, so it has no entry in the skin registry.
 3. **配置奖池** — edit prizes (label · weight · stock); win-rates update live.
 4. **生成** — publish creates a campaign with a confusable-free tracking id and returns a Telegram
    deep link + QR (the "generated page" — the TMA renders the activity from the campaign config).

@@ -15,10 +15,31 @@ const META: Record<string, { blurb: string; emoji: string }> = {
   flip_card: { blurb: "翻开卡牌，中间一张揭晓奖品", emoji: "🃏" },
 };
 
-/** The game catalog surfaced in the picker — titles come from the shared registry. */
-export const GAMES: GameInfo[] = GAME_CODES.map((code) => ({
-  code,
-  title: gameFor(code).title,
-  blurb: META[code]?.blurb ?? "",
-  emoji: META[code]?.emoji ?? "🎮",
-}));
+/** Template code of the daily budget-decision game. */
+export const DAILY_BUDGET = "daily_budget";
+
+/** Animation skin the daily game uses for its reward draw — mirrors `REWARD_SKIN` in the TMA. */
+export const DAILY_REWARD_SKIN = "blind_box";
+
+/**
+ * The game catalog surfaced in the picker.
+ *
+ * The five skins come from the shared registry. `daily_budget` is appended by hand: it is a
+ * scored decision game, not an animation over a draw, so it has no entry in `@ignition/games` —
+ * that package's contract is "animate a server-decided outcome", and widening it to fit this game
+ * would hand every skin props it does not use.
+ */
+export const GAMES: GameInfo[] = [
+  ...GAME_CODES.map((code) => ({
+    code,
+    title: gameFor(code).title,
+    blurb: META[code]?.blurb ?? "",
+    emoji: META[code]?.emoji ?? "🎮",
+  })),
+  {
+    code: DAILY_BUDGET,
+    title: "每日理财决策",
+    blurb: "每天一个理财场景，选完即评分并科普；连续打卡累积理财分与排行榜，答完进入抽奖",
+    emoji: "📊",
+  },
+];

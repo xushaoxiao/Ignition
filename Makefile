@@ -37,6 +37,7 @@ migrate: ## Run migrations (as admin)
 	$(PSQL) < db/migrations/0002_auth_game_postback.sql
 	$(PSQL) < db/migrations/0003_invoice_payment_push.sql
 	$(PSQL) < db/migrations/0004_game_templates.sql
+	$(PSQL) < db/migrations/0005_daily_budget.sql
 	@# Migration creates ignition_app as NOLOGIN (runs on internet-reachable hosted DBs;
 	@# cannot seed default passwords). Local docker is not exposed; enable login here for dev.
 	@# In production, run this separately with a random password.
@@ -48,6 +49,7 @@ migrate-remote: ## Run migrations on remote DB (reads IGNITION_PG_DSN; does not 
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0002_auth_game_postback.sql
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0003_invoice_payment_push.sql
 	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0004_game_templates.sql
+	psql "$$IGNITION_PG_DSN" -v ON_ERROR_STOP=1 -v schema=$(DB_SCHEMA) < db/migrations/0005_daily_budget.sql
 
 seed: ## Load demo data (tenant / KOL / campaign / prize pool / link)
 	$(PSQL) < db/seed.sql

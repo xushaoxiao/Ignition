@@ -15,6 +15,7 @@ pub mod attribution;
 pub mod auth;
 pub mod billing;
 pub mod config;
+pub mod daily;
 pub mod db;
 pub mod entitlement;
 pub mod game;
@@ -211,6 +212,7 @@ async fn serve(
         issue: attribution::issue::Service::new(pool.clone(), policy),
         postback: attribution::postback::Service::new(pool.clone(), policy),
         game: game::play::Service::new(pool.clone()),
+        daily: daily::round::Service::new(pool.clone()),
         issuer: auth::jwt::Issuer::new(cfg.secrets.jwt_key.as_bytes()),
         cipher,
         pool,

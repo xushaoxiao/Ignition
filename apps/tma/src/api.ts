@@ -68,14 +68,19 @@ export class ApiError extends Error {
 let access = ''
 let refresh = ''
 
-async function call<T>(path: string, body: unknown, retryOn401 = true): Promise<T> {
+async function request<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  body?: unknown,
+  retryOn401 = true,
+): Promise<T> {
   const res = await fetch(BASE + path, {
-    method: 'POST',
+    method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(access ? { Authorization: `Bearer ${access}` } : {}),
     },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   })
 
   if (res.ok) return (await res.json()) as T
@@ -83,7 +88,7 @@ async function call<T>(path: string, body: unknown, retryOn401 = true): Promise<
   // Token expired: refresh once and retry. Only one retry — a second failure means
   // refresh is gone too and the user must reopen the mini app; infinite retry just spins.
   if (res.status === 401 && retryOn401 && refresh) {
-    if (await tryRefresh()) return call<T>(path, body, false)
+    if (await tryRefresh()) return request<T>(method, path, body, false)
   }
 
   const payload = (await res.json().catch(() => null)) as
@@ -116,7 +121,7 @@ async function tryRefresh(): Promise<boolean> {
 
 /** Exchange initData for a session. First request on every mini app open. */
 export async function openSession(initData: string): Promise<Session> {
-  const s = await call<Session>('/v1/tma/session', { init_data: initData }, false)
+  const s = await request<Session>('POST', '/v1/tma/session', { init_data: initData }, false)
   access = s.access_token
   refresh = s.refresh_token
   return s
@@ -129,12 +134,114 @@ export async function openSession(initData: string): Promise<Session> {
  * tap reuse the same key; the next tap gets a new one.
  */
 export function play(idempotencyKey: string): Promise<PlayResult> {
-  return call<PlayResult>('/v1/tma/play', { idempotency_key: idempotencyKey })
+  return request<PlayResult>('POST', '/v1/tma/play', { idempotency_key: idempotencyKey })
 }
 
 /** Claim a redemption code for a play. Repeat calls for the same play return the same code. */
 export function claim(playId: number): Promise<ClaimResult> {
-  return call<ClaimResult>('/v1/tma/claim', { play_id: playId })
+  return request<ClaimResult>('POST', '/v1/tma/claim', { play_id: playId })
+}
+
+// ---------------------------------------------------------------- daily budget game
+
+export type Grade = 'building' | 'steady' | 'strong' | 'excellent'
+
+/**
+ * One answer option.
+ *
+ * Key and label only — the score, the verdict, and the teaching line stay on the server until
+ * the answer is submitted. If the client could read the scores, the game would be a lookup table.
+ */
+export interface DailyChoice {
+  key: string
+  label: string
+}
+
+export interface DailyScenario {
+  id: number
+  code: string
+  title: string
+  prompt: string
+  choices: DailyChoice[]
+}
+
+/** Result of one decision. Produced by the server; the client only renders it. */
+export interface DailyOutcome {
+  choice_key: string
+  choice_label: string
+  /** The decision's own score change. */
+  delta: number
+  /** Extra points for the check-in streak, kept separate so the UI can credit the habit. */
+  streak_bonus: number
+  credit: number
+  grade: Grade
+  grade_label: string
+  streak: number
+  verdict: string
+  tip: string
+}
+
+/** Soft prompt configured on the campaign; only present once the player scores high enough. */
+export interface Promo {
+  text: string
+  url?: string
+  min_credit: number
+}
+
+export interface DailyToday {
+  date: string
+  scenario: DailyScenario
+  credit: number
+  grade: Grade
+  grade_label: string
+  streak: number
+  rounds_played: number
+  /** Non-null when today's decision is already made — the same shape an answer returns. */
+  answered: DailyOutcome | null
+  rank: number | null
+  players: number
+  promo: Promo | null
+}
+
+export interface DailyAnswer extends DailyOutcome {
+  rank: number
+  players: number
+  promo: Promo | null
+  /** The answer was already recorded; this response repeats it. */
+  idempotent: boolean
+}
+
+export interface BoardEntry {
+  rank: number
+  name: string
+  credit: number
+  streak: number
+  me: boolean
+}
+
+export interface DailyLeaderboard {
+  entries: BoardEntry[]
+  my_rank: number | null
+  players: number
+}
+
+/** Today's scenario plus the player's standing. Safe to call repeatedly. */
+export function dailyToday(): Promise<DailyToday> {
+  return request<DailyToday>('GET', '/v1/tma/daily')
+}
+
+/**
+ * Submit today's decision.
+ *
+ * No idempotency key: the day itself is the key. The server accepts one round per player per day
+ * and replays the stored outcome for any repeat, so a retry after a dropped connection is safe.
+ */
+export function dailyAnswer(choiceKey: string): Promise<DailyAnswer> {
+  return request<DailyAnswer>('POST', '/v1/tma/daily/answer', { choice_key: choiceKey })
+}
+
+export function dailyLeaderboard(): Promise<DailyLeaderboard> {
+  return request<DailyLeaderboard>('GET', '/v1/tma/daily/leaderboard')
 }
 
 /** Generate a new idempotency key. */
